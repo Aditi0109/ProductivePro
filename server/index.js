@@ -37,6 +37,14 @@ let nudges = [
   { id: 2, type: 'break_reminder', message: 'Take a 5-minute break to recharge.', isRead: false, createdAt: new Date() }
 ];
 
+// Track daily stats
+let dailyStats = {
+  totalProductiveTime: 0, // in minutes
+  totalDistractedTime: 0, // in minutes (pause time)
+  sessionsCompleted: 0,
+  lastResetDate: new Date().toDateString()
+};
+
 // API Routes
 
 // Pomodoro Timer Routes
@@ -47,6 +55,17 @@ app.get('/api/pomodoro/current', (req, res) => {
 app.post('/api/pomodoro/start', (req, res) => {
   const { duration, type } = req.body;
   
+  // Reset daily stats if it's a new day
+  const today = new Date().toDateString();
+  if (dailyStats.lastResetDate !== today) {
+    dailyStats = {
+      totalProductiveTime: 0,
+      totalDistractedTime: 0,
+      sessionsCompleted: 0,
+      lastResetDate: today
+    };
+  }
+  
   currentSession = {
     id: Date.now(),
     userId: DEMO_USER_ID,
@@ -55,11 +74,35 @@ app.post('/api/pomodoro/start', (req, res) => {
     startTime: new Date(),
     endTime: null,
     completed: false,
-    timeRemaining: (duration || 25) * 60 // in seconds
+    timeRemaining: (duration || 25) * 60, // in seconds
+    totalPauseTime: 0, // track total time paused
+    lastPauseStart: null,
+    actualWorkTime: 0 // actual focused time excluding pauses
   };
   
   pomodoroSessions.push(currentSession);
   res.json(currentSession);
+});
+
+app.post('/api/pomodoro/pause', (req, res) => {
+  if (currentSession && !currentSession.lastPauseStart) {
+    currentSession.lastPauseStart = new Date();
+    res.json({ success: true, pausedAt: currentSession.lastPauseStart });
+  } else {
+    res.status(400).json({ error: 'No active session or already paused' });
+  }
+});
+
+app.post('/api/pomodoro/resume', (req, res) => {
+  if (currentSession && currentSession.lastPauseStart) {
+    const pauseDuration = (new Date() - currentSession.lastPauseStart) / 1000 / 60; // in minutes
+    currentSession.totalPauseTime += pauseDuration;
+    currentSession.lastPauseStart = null;
+    dailyStats.totalDistractedTime += pauseDuration;
+    res.json({ success: true, totalPauseTime: currentSession.totalPauseTime });
+  } else {
+    res.status(400).json({ error: 'No session to resume' });
+  }
 });
 
 app.post('/api/pomodoro/complete', (req, res) => {
@@ -67,6 +110,14 @@ app.post('/api/pomodoro/complete', (req, res) => {
     currentSession.endTime = new Date();
     currentSession.completed = true;
     currentSession.timeRemaining = 0;
+    
+    // Calculate actual work time (total duration minus pause time)
+    const totalSessionTime = (currentSession.endTime - currentSession.startTime) / 1000 / 60; // in minutes
+    currentSession.actualWorkTime = Math.max(0, currentSession.duration - currentSession.totalPauseTime);
+    
+    // Update daily stats
+    dailyStats.totalProductiveTime += currentSession.actualWorkTime;
+    dailyStats.sessionsCompleted += 1;
     
     // Update the session in the array
     const index = pomodoroSessions.findIndex(s => s.id === currentSession.id);
@@ -85,6 +136,14 @@ app.post('/api/pomodoro/stop', (req, res) => {
   if (currentSession) {
     currentSession.endTime = new Date();
     currentSession.completed = false;
+    
+    // If there was an active pause, calculate final pause time
+    if (currentSession.lastPauseStart) {
+      const pauseDuration = (new Date() - currentSession.lastPauseStart) / 1000 / 60; // in minutes
+      currentSession.totalPauseTime += pauseDuration;
+      dailyStats.totalDistractedTime += pauseDuration;
+      currentSession.lastPauseStart = null;
+    }
     
     // Update the session in the array
     const index = pomodoroSessions.findIndex(s => s.id === currentSession.id);
@@ -192,21 +251,32 @@ app.delete('/api/schedules/:id', (req, res) => {
 
 // Usage Insights Routes
 app.get('/api/insights', (req, res) => {
-  const today = new Date();
-  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // Reset daily stats if it's a new day
+  const today = new Date().toDateString();
+  if (dailyStats.lastResetDate !== today) {
+    dailyStats = {
+      totalProductiveTime: 0,
+      totalDistractedTime: 0,
+      sessionsCompleted: 0,
+      lastResetDate: today
+    };
+  }
   
-  // Generate mock insights based on sessions
-  const completedSessions = pomodoroSessions.filter(s => s.completed);
-  const totalProductiveTime = completedSessions.reduce((total, session) => total + session.duration, 0);
+  // Calculate focus score: focused time vs total time (focused + distracted)
+  const totalTime = dailyStats.totalProductiveTime + dailyStats.totalDistractedTime;
+  const focusScore = totalTime > 0 ? Math.round((dailyStats.totalProductiveTime / totalTime) * 100) : 0;
   
   const insights = {
-    totalProductiveTime,
-    totalDistractedTime: Math.floor(totalProductiveTime * 0.3), // 30% distraction
-    pomodoroCount: completedSessions.length,
+    totalProductiveTime: Math.round(dailyStats.totalProductiveTime), // in minutes
+    totalDistractedTime: Math.round(dailyStats.totalDistractedTime), // in minutes (pause time)
+    pomodoroCount: dailyStats.sessionsCompleted,
     sitesBlocked: blockedSites.filter(s => s.isActive).length,
-    focusScore: Math.min(100, Math.floor((totalProductiveTime / 480) * 100)), // Out of 8 hours
-    weeklyTrend: [65, 72, 68, 75, 82, 78, 85], // Mock weekly data
-    productivityByHour: Array.from({length: 24}, (_, i) => Math.floor(Math.random() * 100))
+    focusScore: focusScore,
+    timeAway: Math.round(dailyStats.totalDistractedTime), // time paused
+    currentSession: currentSession ? {
+      totalPauseTime: Math.round(currentSession.totalPauseTime || 0),
+      isPaused: !!currentSession.lastPauseStart
+    } : null
   };
   
   res.json(insights);
@@ -230,13 +300,20 @@ app.post('/api/nudges/:id/read', (req, res) => {
 
 // Leaderboard Routes
 app.get('/api/leaderboard', (req, res) => {
-  const mockLeaderboard = [
-    { id: 1, user: { firstName: 'Alice', lastName: 'Johnson' }, totalScore: 18200, weeklyScore: 920, streakDays: 18 },
-    { id: 2, user: { firstName: 'Demo', lastName: 'User' }, totalScore: 15600, weeklyScore: 850, streakDays: 12 },
-    { id: 3, user: { firstName: 'Bob', lastName: 'Smith' }, totalScore: 12400, weeklyScore: 760, streakDays: 8 },
-    { id: 4, user: { firstName: 'Carol', lastName: 'Davis' }, totalScore: 11100, weeklyScore: 680, streakDays: 6 }
+  // Calculate total productive minutes as the score for demo user
+  const demoUserScore = Math.round(dailyStats.totalProductiveTime);
+  
+  const leaderboard = [
+    { id: 1, user: { firstName: 'Alice', lastName: 'Johnson' }, totalScore: 1840, weeklyScore: 520, streakDays: 18 },
+    { id: 2, user: { firstName: 'Demo', lastName: 'User' }, totalScore: demoUserScore, weeklyScore: demoUserScore, streakDays: dailyStats.sessionsCompleted },
+    { id: 3, user: { firstName: 'Bob', lastName: 'Smith' }, totalScore: 1240, weeklyScore: 360, streakDays: 8 },
+    { id: 4, user: { firstName: 'Carol', lastName: 'Davis' }, totalScore: 1110, weeklyScore: 280, streakDays: 6 }
   ];
-  res.json(mockLeaderboard);
+  
+  // Sort by total score (productive minutes)
+  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  
+  res.json(leaderboard);
 });
 
 // Serve the main page

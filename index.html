@@ -307,17 +307,21 @@
                     
                     <!-- Interactive Insights Dashboard -->
                     <div id="insights-dashboard" class="bg-dark-600 rounded-lg p-6">
-                        <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="grid grid-cols-3 gap-4 mb-4">
                             <div class="text-center">
-                                <div id="productive-time" class="text-2xl font-bold text-blue-500">0h</div>
+                                <div id="productive-time" class="text-xl font-bold text-blue-500">0m</div>
                                 <div class="text-xs text-gray-400">Productive Time</div>
                             </div>
                             <div class="text-center">
-                                <div id="focus-score" class="text-2xl font-bold text-green-500">0%</div>
+                                <div id="time-away" class="text-xl font-bold text-orange-500">0m</div>
+                                <div class="text-xs text-gray-400">Time Away</div>
+                            </div>
+                            <div class="text-center">
+                                <div id="focus-score" class="text-xl font-bold text-green-500">0%</div>
                                 <div class="text-xs text-gray-400">Focus Score</div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="text-center">
                                 <div id="pomodoro-count" class="text-2xl font-bold text-accent-500">0</div>
                                 <div class="text-xs text-gray-400">Sessions Today</div>
@@ -327,7 +331,7 @@
                                 <div class="text-xs text-gray-400">Sites Blocked</div>
                             </div>
                         </div>
-                        <button id="refresh-insights" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                        <button id="refresh-insights" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
                             Refresh Insights
                         </button>
                     </div>

@@ -99,10 +99,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function updateButtons() {
+            // Update start button text based on state
+            const startText = isPaused ? 'Resume' : 'Start';
+            startBtn.textContent = startText;
+            fullscreenStartBtn.textContent = startText;
+            
             const buttons = [
                 { normal: startBtn, fullscreen: fullscreenStartBtn, disabled: isRunning },
-                { normal: pauseBtn, fullscreen: fullscreenPauseBtn, disabled: !isRunning },
-                { normal: stopBtn, fullscreen: fullscreenStopBtn, disabled: !isRunning && timeRemaining === currentDuration * 60 }
+                { normal: pauseBtn, fullscreen: fullscreenPauseBtn, disabled: !isRunning || isPaused },
+                { normal: stopBtn, fullscreen: fullscreenStopBtn, disabled: !isRunning && !isPaused && timeRemaining === currentDuration * 60 }
             ];
             
             buttons.forEach(btn => {
@@ -126,8 +131,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fullscreenTimer.classList.remove('flex');
         }
         
+        let isPaused = false;
+
         async function startTimer() {
-            if (!isRunning) {
+            if (!isRunning && !isPaused) {
                 try {
                     const response = await fetch('/api/pomodoro/start', {
                         method: 'POST',
@@ -137,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (response.ok) {
                         isRunning = true;
+                        isPaused = false;
                         updateStatus('Focus session in progress...');
                         
                         // Enter fullscreen when starting timer
@@ -157,19 +165,62 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (error) {
                     showNotification('Failed to start timer. Please try again.', 'error');
                 }
+            } else if (isPaused) {
+                // Resume from pause
+                resumeTimer();
+            }
+        }
+
+        async function resumeTimer() {
+            if (isPaused && !isRunning) {
+                try {
+                    await fetch('/api/pomodoro/resume', { method: 'POST' });
+                    isRunning = true;
+                    isPaused = false;
+                    updateStatus('Focus session resumed...');
+                    
+                    currentTimer = setInterval(() => {
+                        timeRemaining--;
+                        updateDisplay();
+                        
+                        if (timeRemaining <= 0) {
+                            completeTimer();
+                        }
+                    }, 1000);
+                    
+                    updateButtons();
+                    showNotification('Session resumed', 'success');
+                    refreshInsights();
+                } catch (error) {
+                    showNotification('Failed to resume timer', 'error');
+                }
             }
         }
 
         startBtn.addEventListener('click', startTimer);
         fullscreenStartBtn.addEventListener('click', startTimer);
         
-        function pauseTimer() {
+        async function pauseTimer() {
             if (isRunning) {
-                clearInterval(currentTimer);
-                isRunning = false;
-                updateStatus('Session paused');
-                updateButtons();
-                showNotification('Timer paused', 'info');
+                try {
+                    await fetch('/api/pomodoro/pause', { method: 'POST' });
+                    clearInterval(currentTimer);
+                    isRunning = false;
+                    isPaused = true;
+                    updateStatus('Session paused - Time away is being tracked');
+                    updateButtons();
+                    showNotification('Timer paused - Time away is being tracked', 'info');
+                    
+                    // Refresh insights to show updated pause time
+                    refreshInsights();
+                } catch (error) {
+                    clearInterval(currentTimer);
+                    isRunning = false;
+                    isPaused = true;
+                    updateStatus('Session paused');
+                    updateButtons();
+                    showNotification('Timer paused', 'info');
+                }
             }
         }
 
@@ -225,6 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
         function resetTimer() {
             clearInterval(currentTimer);
             isRunning = false;
+            isPaused = false;
             timeRemaining = currentDuration * 60;
             updateStatus('Ready to focus');
             updateDisplay();
@@ -546,6 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Insights Dashboard Implementation
     function initializeInsightsDashboard() {
         const productiveTimeEl = document.getElementById('productive-time');
+        const timeAwayEl = document.getElementById('time-away');
         const focusScoreEl = document.getElementById('focus-score');
         const pomodoroCountEl = document.getElementById('pomodoro-count');
         const sitesBlockedCountEl = document.getElementById('sites-blocked-count');
@@ -556,18 +609,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch('/api/insights');
                 const insights = await response.json();
                 
-                productiveTimeEl.textContent = `${Math.floor(insights.totalProductiveTime / 60)}h ${insights.totalProductiveTime % 60}m`;
+                // Display productive time in minutes
+                productiveTimeEl.textContent = `${insights.totalProductiveTime}m`;
+                
+                // Display time away (distracted time from pauses)
+                timeAwayEl.textContent = `${insights.timeAway}m`;
+                
+                // Display focus score (focused time vs total time)
                 focusScoreEl.textContent = `${insights.focusScore}%`;
+                
+                // Display sessions completed today
                 pomodoroCountEl.textContent = insights.pomodoroCount;
+                
+                // Display sites blocked count
                 sitesBlockedCountEl.textContent = insights.sitesBlocked;
                 
-                // Update focus score color
+                // Update focus score color based on percentage
                 if (insights.focusScore >= 80) {
-                    focusScoreEl.className = 'text-2xl font-bold text-green-500';
+                    focusScoreEl.className = 'text-xl font-bold text-green-500';
                 } else if (insights.focusScore >= 60) {
-                    focusScoreEl.className = 'text-2xl font-bold text-yellow-500';
+                    focusScoreEl.className = 'text-xl font-bold text-yellow-500';
+                } else if (insights.focusScore > 0) {
+                    focusScoreEl.className = 'text-xl font-bold text-orange-500';
                 } else {
-                    focusScoreEl.className = 'text-2xl font-bold text-red-500';
+                    focusScoreEl.className = 'text-xl font-bold text-gray-500';
+                }
+                
+                // Update time away color based on amount
+                if (insights.timeAway > 30) {
+                    timeAwayEl.className = 'text-xl font-bold text-red-500';
+                } else if (insights.timeAway > 10) {
+                    timeAwayEl.className = 'text-xl font-bold text-yellow-500';
+                } else {
+                    timeAwayEl.className = 'text-xl font-bold text-green-500';
                 }
             } catch (error) {
                 showNotification('Failed to load insights', 'error');
@@ -714,12 +788,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="text-white text-sm font-medium">
                                         ${entry.user.firstName} ${entry.user.lastName} ${isCurrentUser ? '(You)' : ''}
                                     </div>
-                                    <div class="text-gray-400 text-xs">${entry.streakDays} day streak</div>
+                                    <div class="text-gray-400 text-xs">${entry.streakDays} sessions completed</div>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-yellow-400 font-bold">${entry.totalScore.toLocaleString()}</div>
-                                <div class="text-gray-400 text-xs">points</div>
+                                <div class="text-yellow-400 font-bold">${entry.totalScore}</div>
+                                <div class="text-gray-400 text-xs">productive mins</div>
                             </div>
                         </div>
                     `;
