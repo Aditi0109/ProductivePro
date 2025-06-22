@@ -559,16 +559,53 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
   }
 });
 
+// Fallback flashcard generator using text analysis
+function generateFallbackFlashcards(textContent, count, difficulty) {
+  const sentences = textContent.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  const flashcards = [];
+  
+  // Generate question-answer pairs based on text content
+  for (let i = 0; i < Math.min(count, sentences.length); i++) {
+    const sentence = sentences[i].trim();
+    if (sentence.length > 30) {
+      // Create questions based on sentence structure
+      let question, answer;
+      
+      if (sentence.toLowerCase().includes('is defined as') || sentence.toLowerCase().includes('refers to')) {
+        const parts = sentence.split(/is defined as|refers to/i);
+        question = `What ${parts[0].trim()}?`;
+        answer = parts[1] ? parts[1].trim() : sentence;
+      } else if (sentence.toLowerCase().includes('because') || sentence.toLowerCase().includes('due to')) {
+        const parts = sentence.split(/because|due to/i);
+        question = `Why ${parts[0].trim()}?`;
+        answer = `Because ${parts[1] ? parts[1].trim() : 'of the factors mentioned in the document'}`;
+      } else {
+        // Default question format
+        const words = sentence.split(' ');
+        if (words.length > 5) {
+          question = `What does the document state about ${words.slice(0, 3).join(' ')}?`;
+          answer = sentence;
+        } else {
+          question = `According to the document, what is mentioned about the content?`;
+          answer = sentence;
+        }
+      }
+      
+      flashcards.push({
+        id: i + 1,
+        question: question,
+        answer: answer,
+        difficulty: difficulty
+      });
+    }
+  }
+  
+  return flashcards;
+}
+
 app.post('/api/snapstudy/generate', async (req, res) => {
   try {
     const { textContent, count = 10, difficulty = 'medium' } = req.body;
-    
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(400).json({
-        success: false,
-        error: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.'
-      });
-    }
     
     if (!textContent) {
       return res.status(400).json({
@@ -576,12 +613,15 @@ app.post('/api/snapstudy/generate', async (req, res) => {
         error: 'No text content provided for flashcard generation'
       });
     }
-
-    // Generate flashcards using OpenAI
-    const prompt = `Based on the following text content, generate exactly ${count} educational flashcards at ${difficulty} difficulty level.
+    
+    // Try AI generation first if API key is available
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        // Generate flashcards using OpenAI
+        const prompt = `Based on the following text content, generate exactly ${count} educational flashcards at ${difficulty} difficulty level.
 
 Text content:
-${textContent.substring(0, 3000)} // Limit text to avoid token limits
+${textContent.substring(0, 3000)}
 
 Please create flashcards that:
 1. Focus on key concepts, facts, and important information
@@ -599,41 +639,61 @@ Return the response in the following JSON format:
   ]
 }`;
 
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert educational content creator specializing in generating high-quality flashcards from academic material. Generate exactly the requested number of flashcards in valid JSON format."
-        },
-        {
-          role: "user",
-          content: prompt
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert educational content creator specializing in generating high-quality flashcards from academic material. Generate exactly the requested number of flashcards in valid JSON format."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 2000
+        });
+
+        const result = JSON.parse(response.choices[0].message.content);
+        
+        if (!result.flashcards || !Array.isArray(result.flashcards)) {
+          throw new Error('Invalid response format from AI');
         }
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 2000
-    });
 
-    const result = JSON.parse(response.choices[0].message.content);
-    
-    if (!result.flashcards || !Array.isArray(result.flashcards)) {
-      throw new Error('Invalid response format from AI');
+        const flashcards = result.flashcards.slice(0, count).map((card, index) => ({
+          id: index + 1,
+          question: card.question,
+          answer: card.answer,
+          difficulty: difficulty
+        }));
+
+        return res.json({
+          success: true,
+          flashcards: flashcards,
+          count: flashcards.length,
+          difficulty: difficulty,
+          source: 'ai'
+        });
+
+      } catch (error) {
+        console.error('AI flashcard generation failed, using fallback:', error.message);
+        
+        // Fall through to use fallback system
+      }
     }
-
-    const flashcards = result.flashcards.slice(0, count).map((card, index) => ({
-      id: index + 1,
-      question: card.question,
-      answer: card.answer,
-      difficulty: difficulty
-    }));
-
+    
+    // Use fallback text-based flashcard generation
+    const fallbackFlashcards = generateFallbackFlashcards(textContent, count, difficulty);
+    
     res.json({
       success: true,
-      flashcards: flashcards,
-      count: flashcards.length,
-      difficulty: difficulty
+      flashcards: fallbackFlashcards,
+      count: fallbackFlashcards.length,
+      difficulty: difficulty,
+      source: 'text-analysis',
+      message: 'Flashcards generated using text analysis (AI service unavailable)'
     });
 
   } catch (error) {

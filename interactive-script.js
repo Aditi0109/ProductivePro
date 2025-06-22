@@ -563,9 +563,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadSchedules();
                     showNotification('Schedule removed', 'info');
                     
-                    // Show nudge when schedule ends
+                    // Show notification when schedule ends
                     setTimeout(() => {
-                        showSmartNudge('Your blocking schedule has ended. Ready for your next focus session?');
+                        showNotification('Your blocking schedule has ended. Ready for your next focus session?', 'info');
                     }, 1000);
                 }
             } catch (error) {
@@ -573,20 +573,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
         
-        // Simulate schedule-based nudges
+        // Simulate schedule-based notifications
         function simulateScheduleNudges() {
-            const scheduleNudges = [
+            const scheduleNotifications = [
                 'Your deep work schedule starts in 5 minutes. Prepare your workspace!',
                 'Focus time is ending soon. Wrap up your current task.',
                 'Break time! Step away from your screen for a few minutes.',
                 'Your scheduled blocking session has begun. Stay focused!'
             ];
             
-            // Show random schedule nudges every 2 minutes for demo
+            // Show random schedule notifications every 2 minutes for demo
             setInterval(() => {
                 if (Math.random() < 0.3) { // 30% chance every 2 minutes
-                    const randomNudge = scheduleNudges[Math.floor(Math.random() * scheduleNudges.length)];
-                    showSmartNudge(randomNudge);
+                    const randomNotification = scheduleNotifications[Math.floor(Math.random() * scheduleNotifications.length)];
+                    showNotification(randomNotification, 'info');
                 }
             }, 2 * 60 * 1000); // Every 2 minutes
         }
@@ -922,7 +922,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 generatedFlashcards = generateResult.flashcards || [];
                 
                 displayFlashcardResults();
-                showNotification(`Generated ${generatedFlashcards.length} flashcards successfully`, 'success');
+                
+                // Show appropriate success message based on generation source
+                if (generateResult.source === 'text-analysis') {
+                    showNotification(`Generated ${generatedFlashcards.length} flashcards using text analysis`, 'success');
+                } else {
+                    showNotification(`Generated ${generatedFlashcards.length} flashcards successfully`, 'success');
+                }
                 
             } catch (error) {
                 console.error('Flashcard generation error:', error);
