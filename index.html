@@ -20,6 +20,9 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
     
+    <!-- Interactive Features Script -->
+    <script src="interactive-script.js" defer></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -136,127 +139,251 @@
         </div>
     </section>
 
-    <!-- Features Section -->
+    <!-- Interactive Features Section -->
     <section id="features" class="py-20 px-4 sm:px-6 lg:px-8 bg-dark-800">
         <div class="max-w-7xl mx-auto">
             <div class="text-center mb-16">
                 <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">
-                    Everything You Need to Stay Focused
+                    Interactive Productivity Tools
                 </h2>
                 <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-                    Our comprehensive suite of productivity tools helps you eliminate distractions and maximize your potential.
+                    Try our fully functional productivity features below. All data is saved and interactive.
                 </p>
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Feature 1: Pomodoro Timer -->
+                <!-- Feature 1: Interactive Pomodoro Timer -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-accent-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="clock" class="w-6 h-6 text-accent-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Pomodoro Timer Integration</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Built-in Pomodoro technique with customizable work and break intervals. 
-                                Track your sessions and maintain optimal focus throughout the day.
+                            <h3 class="text-xl font-semibold text-white mb-3">Pomodoro Timer</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Start a focus session with our interactive Pomodoro timer.
                             </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interactive Pomodoro Timer -->
+                    <div id="pomodoro-timer" class="bg-dark-600 rounded-lg p-6">
+                        <div class="text-center mb-4">
+                            <div id="timer-display" class="text-4xl font-bold text-accent-500 mb-2">25:00</div>
+                            <div id="timer-status" class="text-gray-400">Ready to focus</div>
+                        </div>
+                        <div class="flex space-x-2 justify-center">
+                            <button id="start-timer" class="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Start
+                            </button>
+                            <button id="pause-timer" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" disabled>
+                                Pause
+                            </button>
+                            <button id="stop-timer" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" disabled>
+                                Stop
+                            </button>
+                        </div>
+                        <div class="mt-4 flex space-x-2 justify-center">
+                            <button class="timer-preset bg-dark-500 hover:bg-dark-400 text-white px-3 py-1 rounded text-xs" data-duration="25">25m</button>
+                            <button class="timer-preset bg-dark-500 hover:bg-dark-400 text-white px-3 py-1 rounded text-xs" data-duration="15">15m</button>
+                            <button class="timer-preset bg-dark-500 hover:bg-dark-400 text-white px-3 py-1 rounded text-xs" data-duration="5">5m</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Feature 2: Site Blocking -->
+                <!-- Feature 2: Interactive Site Blocking -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="shield" class="w-6 h-6 text-red-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Distraction Site Blocking</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Automatically block distracting websites and apps during focus sessions. 
-                                Intelligent blocking that adapts to your work patterns.
+                            <h3 class="text-xl font-semibold text-white mb-3">Site Blocking</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Manage your blocked websites list in real-time.
                             </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interactive Site Blocking -->
+                    <div id="site-blocking" class="bg-dark-600 rounded-lg p-6">
+                        <div class="mb-4">
+                            <div class="flex space-x-2">
+                                <input type="text" id="block-site-input" placeholder="Enter website URL" 
+                                       class="flex-1 bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                                <button id="add-blocked-site" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                                    Block
+                                </button>
+                            </div>
+                        </div>
+                        <div id="blocked-sites-list" class="space-y-2 max-h-32 overflow-y-auto">
+                            <!-- Sites will be loaded here -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Feature 3: Whitelist Mode -->
+                <!-- Feature 3: Interactive Whitelist Mode -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="list" class="w-6 h-6 text-green-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Whitelist Mode with Granular Controls</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Allow only essential websites and applications. Fine-tune permissions 
-                                with granular controls for maximum productivity.
+                            <h3 class="text-xl font-semibold text-white mb-3">Whitelist Mode</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Manage allowed websites for focused work sessions.
                             </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interactive Whitelist -->
+                    <div id="whitelist-mode" class="bg-dark-600 rounded-lg p-6">
+                        <div class="mb-4">
+                            <div class="flex space-x-2">
+                                <input type="text" id="whitelist-site-input" placeholder="Enter allowed website URL" 
+                                       class="flex-1 bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                                <button id="add-whitelist-site" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                                    Allow
+                                </button>
+                            </div>
+                        </div>
+                        <div id="whitelist-sites-list" class="space-y-2 max-h-32 overflow-y-auto">
+                            <!-- Sites will be loaded here -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Feature 4: Blocking Schedule -->
+                <!-- Feature 4: Interactive Blocking Schedule -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="calendar" class="w-6 h-6 text-orange-500"></i>
                         </div>
                         <div>
                             <h3 class="text-xl font-semibold text-white mb-3">Blocking Schedule</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Set automatic blocking schedules based on your work routine. 
-                                Create different profiles for deep work, meetings, and break times.
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Create automated schedules for your focus sessions.
                             </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interactive Schedule Manager -->
+                    <div id="schedule-manager" class="bg-dark-600 rounded-lg p-6">
+                        <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input type="text" id="schedule-name" placeholder="Schedule name" 
+                                   class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                            <select id="schedule-day" class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                                <option value="0">Sunday</option>
+                            </select>
+                            <input type="time" id="schedule-start" class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                            <input type="time" id="schedule-end" class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                        </div>
+                        <button id="add-schedule" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors mb-4">
+                            Add Schedule
+                        </button>
+                        <div id="schedules-list" class="space-y-2 max-h-32 overflow-y-auto">
+                            <!-- Schedules will be loaded here -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Feature 5: Usage Insights -->
+                <!-- Feature 5: Interactive Usage Insights -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="trending-up" class="w-6 h-6 text-blue-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Usage Insights and Suggestions</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Detailed analytics on your digital habits with AI-powered suggestions 
-                                for improvement. Track progress and optimize your workflow.
+                            <h3 class="text-xl font-semibold text-white mb-3">Usage Insights</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Real-time analytics on your productivity patterns.
                             </p>
                         </div>
                     </div>
+                    
+                    <!-- Interactive Insights Dashboard -->
+                    <div id="insights-dashboard" class="bg-dark-600 rounded-lg p-6">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="text-center">
+                                <div id="productive-time" class="text-2xl font-bold text-blue-500">0h</div>
+                                <div class="text-xs text-gray-400">Productive Time</div>
+                            </div>
+                            <div class="text-center">
+                                <div id="focus-score" class="text-2xl font-bold text-green-500">0%</div>
+                                <div class="text-xs text-gray-400">Focus Score</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div id="pomodoro-count" class="text-2xl font-bold text-accent-500">0</div>
+                                <div class="text-xs text-gray-400">Sessions Today</div>
+                            </div>
+                            <div class="text-center">
+                                <div id="sites-blocked-count" class="text-2xl font-bold text-red-500">0</div>
+                                <div class="text-xs text-gray-400">Sites Blocked</div>
+                            </div>
+                        </div>
+                        <button id="refresh-insights" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                            Refresh Insights
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Feature 6: Behavior-Aware Nudges -->
+                <!-- Feature 6: Interactive Behavior-Aware Nudges -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                            <i data-feather="brain" class="w-6 h-6 text-purple-500"></i>
+                            <i data-feather="bell" class="w-6 h-6 text-purple-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Behavior-Aware Nudges</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Smart notifications that learn your patterns and provide timely reminders 
-                                to maintain focus without being intrusive.
+                            <h3 class="text-xl font-semibold text-white mb-3">Smart Nudges</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Receive intelligent reminders based on your activity.
                             </p>
                         </div>
                     </div>
+                    
+                    <!-- Interactive Nudges System -->
+                    <div id="nudges-system" class="bg-dark-600 rounded-lg p-6">
+                        <div id="nudges-list" class="space-y-3 mb-4 max-h-32 overflow-y-auto">
+                            <!-- Nudges will be loaded here -->
+                        </div>
+                        <button id="generate-nudge" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                            Generate Smart Nudge
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Feature 7: Leaderboard -->
+                <!-- Feature 7: Interactive Leaderboard -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300 lg:col-span-2">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
                             <i data-feather="award" class="w-6 h-6 text-yellow-500"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-3">Leaderboard & Gamification</h3>
-                            <p class="text-gray-300 leading-relaxed">
-                                Compete with friends and colleagues in productivity challenges. 
-                                Earn achievements, track streaks, and stay motivated with friendly competition.
+                            <h3 class="text-xl font-semibold text-white mb-3">Live Leaderboard</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                See how you rank against other users in real-time productivity scoring.
                             </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interactive Leaderboard -->
+                    <div id="leaderboard-widget" class="bg-dark-600 rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-lg font-semibold text-white">Top Performers</h4>
+                            <button id="refresh-leaderboard" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors">
+                                Refresh
+                            </button>
+                        </div>
+                        <div id="leaderboard-list" class="space-y-3">
+                            <!-- Leaderboard entries will be loaded here -->
                         </div>
                     </div>
                 </div>
