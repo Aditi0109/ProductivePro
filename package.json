@@ -14,12 +14,14 @@
     "@types/memoizee": "^0.4.12",
     "bcryptjs": "^3.0.2",
     "connect-pg-simple": "^10.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.44.2",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
+    "google-auth-library": "^10.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "memoizee": "^0.4.17",
@@ -27,6 +29,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "path": "^0.12.7",
+    "uuid": "^11.1.0",
     "ws": "^8.18.2"
   }
 }

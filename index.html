@@ -17,11 +17,17 @@
     <!-- Feather Icons -->
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     
+    <!-- Google OAuth -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
     
     <!-- Interactive Features Script -->
     <script src="interactive-script.js" defer></script>
+    
+    <!-- Authentication Script -->
+    <script src="auth.js" defer></script>
     
     <script>
         tailwind.config = {
@@ -68,7 +74,23 @@
                     <a href="#hero" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Home</a>
                     <a href="#features" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Features</a>
                     <a href="#snapStudy" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">SnapStudy</a>
-                    <a href="#contact" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
+                    
+                    <!-- User Authentication Area -->
+                    <div id="auth-section">
+                        <!-- Login button for new users -->
+                        <button id="google-login-btn" class="bg-accent-600 hover:bg-accent-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium hidden">
+                            Login with Google
+                        </button>
+                        
+                        <!-- User info for logged in users -->
+                        <div id="user-info" class="flex items-center space-x-3 hidden">
+                            <img id="user-avatar" src="" alt="User Avatar" class="w-8 h-8 rounded-full">
+                            <span id="user-name" class="text-white font-medium"></span>
+                            <button id="logout-btn" class="text-gray-400 hover:text-white transition-colors duration-200 text-sm">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Mobile menu button -->
@@ -86,7 +108,23 @@
                 <a href="#hero" class="block text-gray-300 hover:text-white transition-colors duration-200">Home</a>
                 <a href="#features" class="block text-gray-300 hover:text-white transition-colors duration-200">Features</a>
                 <a href="#snapStudy" class="block text-gray-300 hover:text-white transition-colors duration-200">SnapStudy</a>
-                <a href="#contact" class="block text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
+                
+                <!-- Mobile Auth Section -->
+                <div id="mobile-auth-section">
+                    <button id="mobile-google-login-btn" class="w-full bg-accent-600 hover:bg-accent-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium hidden">
+                        Login with Google
+                    </button>
+                    
+                    <div id="mobile-user-info" class="flex items-center justify-between hidden">
+                        <div class="flex items-center space-x-3">
+                            <img id="mobile-user-avatar" src="" alt="User Avatar" class="w-8 h-8 rounded-full">
+                            <span id="mobile-user-name" class="text-white font-medium"></span>
+                        </div>
+                        <button id="mobile-logout-btn" class="text-gray-400 hover:text-white transition-colors duration-200 text-sm">
+                            Logout
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>

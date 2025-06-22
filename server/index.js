@@ -1,18 +1,49 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
+const { OAuth2Client } = require('google-auth-library');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Google OAuth client
+const googleClient = new OAuth2Client('1087816387409-9dgnvv0vvvfl8j1tvn1k8e4h3a9klfcm.apps.googleusercontent.com');
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static('.'));
 
-// Simple mock user for demo
-const DEMO_USER_ID = 'demo-user';
+// In-memory user sessions (in production this would use database/Redis)
+const userSessions = new Map();
+const users = new Map();
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  req.user = user;
+  next();
+}
+
+// Helper function to create user session
+function createUserSession(user) {
+  const sessionId = uuidv4();
+  userSessions.set(sessionId, user);
+  return sessionId;
+}
 
 // In-memory storage for the demo (for simplicity)
 let currentSession = null;
@@ -45,30 +76,126 @@ let dailyStats = {
   lastResetDate: new Date().toDateString()
 };
 
+// Authentication Routes
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    // Verify the Google ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: '1087816387409-9dgnvv0vvvfl8j1tvn1k8e4h3a9klfcm.apps.googleusercontent.com'
+    });
+    
+    const payload = ticket.getPayload();
+    const googleId = payload.sub;
+    
+    // Check if user exists, create if not
+    let user = users.get(googleId);
+    
+    if (!user) {
+      // Create new user
+      user = {
+        id: googleId,
+        email: payload.email,
+        firstName: payload.given_name,
+        lastName: payload.family_name,
+        profileImageUrl: payload.picture,
+        createdAt: new Date(),
+        lastLoginAt: new Date()
+      };
+      users.set(googleId, user);
+    } else {
+      // Update last login
+      user.lastLoginAt = new Date();
+    }
+    
+    // Create session
+    const sessionId = createUserSession(user);
+    
+    // Set secure HTTP-only cookie
+    res.cookie('sessionId', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(400).json({ error: 'Invalid credentials' });
+  }
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  
+  if (user) {
+    res.json(user);
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const sessionId = req.cookies.sessionId;
+  
+  if (sessionId) {
+    userSessions.delete(sessionId);
+  }
+  
+  res.clearCookie('sessionId');
+  res.json({ success: true });
+});
+
 // API Routes
 
 // Pomodoro Timer Routes
 app.get('/api/pomodoro/current', (req, res) => {
-  res.json(currentSession);
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userId = user ? user.id : 'demo-user';
+  
+  // Get user-specific session or demo session
+  const userSession = user ? (user.currentSession || null) : currentSession;
+  res.json(userSession);
 });
 
 app.post('/api/pomodoro/start', (req, res) => {
   const { duration, type } = req.body;
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userId = user ? user.id : 'demo-user';
   
-  // Reset daily stats if it's a new day
-  const today = new Date().toDateString();
-  if (dailyStats.lastResetDate !== today) {
-    dailyStats = {
+  // Initialize user data if not exists
+  if (user && !user.dailyStats) {
+    user.dailyStats = {
       totalProductiveTime: 0,
       totalDistractedTime: 0,
       sessionsCompleted: 0,
-      lastResetDate: today
+      lastResetDate: new Date().toDateString()
     };
+    user.pomodoroSessions = [];
   }
   
-  currentSession = {
+  // Get user-specific stats or demo stats
+  const userStats = user ? user.dailyStats : dailyStats;
+  const userSessions = user ? user.pomodoroSessions : pomodoroSessions;
+  
+  // Reset daily stats if it's a new day
+  const today = new Date().toDateString();
+  if (userStats.lastResetDate !== today) {
+    userStats.totalProductiveTime = 0;
+    userStats.totalDistractedTime = 0;
+    userStats.sessionsCompleted = 0;
+    userStats.lastResetDate = today;
+  }
+  
+  const newSession = {
     id: Date.now(),
-    userId: DEMO_USER_ID,
+    userId: userId,
     duration: duration || 25,
     type: type || 'work',
     startTime: new Date(),
@@ -80,53 +207,80 @@ app.post('/api/pomodoro/start', (req, res) => {
     actualWorkTime: 0 // actual focused time excluding pauses
   };
   
-  pomodoroSessions.push(currentSession);
-  res.json(currentSession);
+  // Set the session for the appropriate user
+  if (user) {
+    user.currentSession = newSession;
+  } else {
+    currentSession = newSession;
+  }
+  
+  userSessions.push(newSession);
+  res.json(newSession);
 });
 
 app.post('/api/pomodoro/pause', (req, res) => {
-  if (currentSession && !currentSession.lastPauseStart) {
-    currentSession.lastPauseStart = new Date();
-    res.json({ success: true, pausedAt: currentSession.lastPauseStart });
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const activeSession = user ? user.currentSession : currentSession;
+  
+  if (activeSession && !activeSession.lastPauseStart) {
+    activeSession.lastPauseStart = new Date();
+    res.json({ success: true, pausedAt: activeSession.lastPauseStart });
   } else {
     res.status(400).json({ error: 'No active session or already paused' });
   }
 });
 
 app.post('/api/pomodoro/resume', (req, res) => {
-  if (currentSession && currentSession.lastPauseStart) {
-    const pauseDuration = (new Date() - currentSession.lastPauseStart) / 1000 / 60; // in minutes
-    currentSession.totalPauseTime += pauseDuration;
-    currentSession.lastPauseStart = null;
-    dailyStats.totalDistractedTime += pauseDuration;
-    res.json({ success: true, totalPauseTime: currentSession.totalPauseTime });
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const activeSession = user ? user.currentSession : currentSession;
+  const userStats = user ? user.dailyStats : dailyStats;
+  
+  if (activeSession && activeSession.lastPauseStart) {
+    const pauseDuration = (new Date() - activeSession.lastPauseStart) / 1000 / 60; // in minutes
+    activeSession.totalPauseTime += pauseDuration;
+    activeSession.lastPauseStart = null;
+    userStats.totalDistractedTime += pauseDuration;
+    res.json({ success: true, totalPauseTime: activeSession.totalPauseTime });
   } else {
     res.status(400).json({ error: 'No session to resume' });
   }
 });
 
 app.post('/api/pomodoro/complete', (req, res) => {
-  if (currentSession) {
-    currentSession.endTime = new Date();
-    currentSession.completed = true;
-    currentSession.timeRemaining = 0;
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const activeSession = user ? user.currentSession : currentSession;
+  const userStats = user ? user.dailyStats : dailyStats;
+  const userSessionsArray = user ? user.pomodoroSessions : pomodoroSessions;
+  
+  if (activeSession) {
+    activeSession.endTime = new Date();
+    activeSession.completed = true;
+    activeSession.timeRemaining = 0;
     
     // Calculate actual work time (total duration minus pause time)
-    const totalSessionTime = (currentSession.endTime - currentSession.startTime) / 1000 / 60; // in minutes
-    currentSession.actualWorkTime = Math.max(0, currentSession.duration - currentSession.totalPauseTime);
+    activeSession.actualWorkTime = Math.max(0, activeSession.duration - activeSession.totalPauseTime);
     
     // Update daily stats
-    dailyStats.totalProductiveTime += currentSession.actualWorkTime;
-    dailyStats.sessionsCompleted += 1;
+    userStats.totalProductiveTime += activeSession.actualWorkTime;
+    userStats.sessionsCompleted += 1;
     
     // Update the session in the array
-    const index = pomodoroSessions.findIndex(s => s.id === currentSession.id);
+    const index = userSessionsArray.findIndex(s => s.id === activeSession.id);
     if (index !== -1) {
-      pomodoroSessions[index] = currentSession;
+      userSessionsArray[index] = activeSession;
     }
     
-    res.json(currentSession);
-    currentSession = null;
+    res.json(activeSession);
+    
+    // Clear current session
+    if (user) {
+      user.currentSession = null;
+    } else {
+      currentSession = null;
+    }
   } else {
     res.status(400).json({ error: 'No active session' });
   }
@@ -251,31 +405,45 @@ app.delete('/api/schedules/:id', (req, res) => {
 
 // Usage Insights Routes
 app.get('/api/insights', (req, res) => {
-  // Reset daily stats if it's a new day
-  const today = new Date().toDateString();
-  if (dailyStats.lastResetDate !== today) {
-    dailyStats = {
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userStats = user ? user.dailyStats : dailyStats;
+  const activeSession = user ? user.currentSession : currentSession;
+  const userBlockedSites = user ? (user.blockedSites || blockedSites) : blockedSites;
+  
+  // Initialize user data if not exists
+  if (user && !user.dailyStats) {
+    user.dailyStats = {
       totalProductiveTime: 0,
       totalDistractedTime: 0,
       sessionsCompleted: 0,
-      lastResetDate: today
+      lastResetDate: new Date().toDateString()
     };
   }
   
+  // Reset daily stats if it's a new day
+  const today = new Date().toDateString();
+  if (userStats.lastResetDate !== today) {
+    userStats.totalProductiveTime = 0;
+    userStats.totalDistractedTime = 0;
+    userStats.sessionsCompleted = 0;
+    userStats.lastResetDate = today;
+  }
+  
   // Calculate focus score: focused time vs total time (focused + distracted)
-  const totalTime = dailyStats.totalProductiveTime + dailyStats.totalDistractedTime;
-  const focusScore = totalTime > 0 ? Math.round((dailyStats.totalProductiveTime / totalTime) * 100) : 0;
+  const totalTime = userStats.totalProductiveTime + userStats.totalDistractedTime;
+  const focusScore = totalTime > 0 ? Math.round((userStats.totalProductiveTime / totalTime) * 100) : 0;
   
   const insights = {
-    totalProductiveTime: Math.round(dailyStats.totalProductiveTime), // in minutes
-    totalDistractedTime: Math.round(dailyStats.totalDistractedTime), // in minutes (pause time)
-    pomodoroCount: dailyStats.sessionsCompleted,
-    sitesBlocked: blockedSites.filter(s => s.isActive).length,
+    totalProductiveTime: Math.round(userStats.totalProductiveTime), // in minutes
+    totalDistractedTime: Math.round(userStats.totalDistractedTime), // in minutes (pause time)
+    pomodoroCount: userStats.sessionsCompleted,
+    sitesBlocked: userBlockedSites.filter(s => s.isActive).length,
     focusScore: focusScore,
-    timeAway: Math.round(dailyStats.totalDistractedTime), // time paused
-    currentSession: currentSession ? {
-      totalPauseTime: Math.round(currentSession.totalPauseTime || 0),
-      isPaused: !!currentSession.lastPauseStart
+    timeAway: Math.round(userStats.totalDistractedTime), // time paused
+    currentSession: activeSession ? {
+      totalPauseTime: Math.round(activeSession.totalPauseTime || 0),
+      isPaused: !!activeSession.lastPauseStart
     } : null
   };
   

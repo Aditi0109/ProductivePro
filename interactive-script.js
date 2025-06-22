@@ -1168,10 +1168,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
         
         setTimeout(() => {
-            notification.classList.add('translate-x-full');
-            setTimeout(() => notification.remove(), 300);
-        }, 4000);
-    }
             if (notification.parentNode) {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => notification.remove(), 300);
