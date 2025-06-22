@@ -26,6 +26,7 @@
     "openid-client": "^6.6.1",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "path": "^0.12.7",
     "ws": "^8.18.2"
   }
 }
