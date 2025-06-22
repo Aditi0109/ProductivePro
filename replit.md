@@ -51,15 +51,18 @@ ProductivePro is a comprehensive productivity application that combines Pomodoro
 - **Productivity Metrics**: Daily, weekly, and monthly productivity trends
 - **Visual Reporting**: Charts and graphs for productivity insights
 
-### 5. Nudges System
-- **Smart Notifications**: AI-powered suggestions for optimal work patterns
-- **Behavioral Insights**: Recommendations based on user productivity data
-- **Customizable Alerts**: Focus reminders and break suggestions
+### 5. FocusFuel System
+- **Hourly Motivation**: Automated delivery of inspirational quotes every hour
+- **API Integration**: Uses Quotable.io API with fallback to curated local quotes
+- **Persistent Display**: Shows current quote with countdown to next quote
+- **Interactive Popup**: Displays quotes as non-intrusive notifications
 
-### 6. Leaderboard & Gamification
-- **Competitive Elements**: User ranking based on productivity metrics
-- **Achievement System**: Rewards for consistency and goal achievement
-- **Social Features**: Community-driven motivation and accountability
+### 6. SnapStudy PDF Flashcard Generator
+- **PDF Upload**: Drag-and-drop or click-to-browse PDF document upload
+- **AI-Generated Flashcards**: Converts PDF content into study flashcards (demo uses mock data)
+- **Customizable Options**: Adjustable flashcard count and difficulty levels
+- **Interactive Study Mode**: Full-screen flashcard interface with flip functionality
+- **Progress Tracking**: Navigation between cards with answer reveal system
 
 ## Data Flow
 
@@ -131,6 +134,14 @@ ProductivePro is a comprehensive productivity application that combines Pomodoro
 ```
 Changelog:
 - June 22, 2025. Initial setup
+- June 22, 2025. Migration from Replit Agent to standard Replit environment
+  * Removed smart nudges system and replaced with FocusFuel hourly motivational quotes
+  * Removed live leaderboard feature as requested
+  * Implemented SnapStudy PDF to flashcard generator with interactive study mode
+  * Removed "Start Free Trial", "Watch Demo", and "Get Started" buttons from UI
+  * Added new navigation section for SnapStudy feature
+  * Updated API endpoints to support new features
+  * Fixed JavaScript syntax errors and improved code structure
 ```
 
 ## User Preferences

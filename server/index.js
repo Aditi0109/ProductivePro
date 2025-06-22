@@ -282,38 +282,56 @@ app.get('/api/insights', (req, res) => {
   res.json(insights);
 });
 
-// Nudges Routes
-app.get('/api/nudges', (req, res) => {
-  res.json(nudges.filter(nudge => !nudge.isRead));
-});
-
-app.post('/api/nudges/:id/read', (req, res) => {
-  const id = parseInt(req.params.id);
-  const nudge = nudges.find(n => n.id === id);
-  if (nudge) {
-    nudge.isRead = true;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Nudge not found' });
+// FocusFuel Routes
+app.get('/api/focusfuel/quote', async (req, res) => {
+  try {
+    // In production, this would cache quotes and use a real API
+    const fallbackQuotes = [
+      { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+      { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+      { text: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle" },
+      { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+      { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+      { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
+      { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+      { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+      { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+      { text: "Life is what happens to you while you're busy making other plans.", author: "John Lennon" }
+    ];
+    
+    const randomQuote = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+    res.json(randomQuote);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch quote' });
   }
 });
 
-// Leaderboard Routes
-app.get('/api/leaderboard', (req, res) => {
-  // Calculate total productive minutes as the score for demo user
-  const demoUserScore = Math.round(dailyStats.totalProductiveTime);
+// SnapStudy Routes
+app.post('/api/snapstudy/generate', (req, res) => {
+  const { count = 10, difficulty = 'medium' } = req.body;
   
-  const leaderboard = [
-    { id: 1, user: { firstName: 'Alice', lastName: 'Johnson' }, totalScore: 1840, weeklyScore: 520, streakDays: 18 },
-    { id: 2, user: { firstName: 'Demo', lastName: 'User' }, totalScore: demoUserScore, weeklyScore: demoUserScore, streakDays: dailyStats.sessionsCompleted },
-    { id: 3, user: { firstName: 'Bob', lastName: 'Smith' }, totalScore: 1240, weeklyScore: 360, streakDays: 8 },
-    { id: 4, user: { firstName: 'Carol', lastName: 'Davis' }, totalScore: 1110, weeklyScore: 280, streakDays: 6 }
+  // Mock flashcard generation (in production would use PDF extraction + AI)
+  const mockFlashcards = [
+    { question: "What is the main concept discussed in the document?", answer: "The document discusses productivity techniques and focus management strategies." },
+    { question: "According to the text, what is the Pomodoro Technique?", answer: "A time management method using 25-minute focused work sessions followed by short breaks." },
+    { question: "What are the benefits of website blocking mentioned?", answer: "Reduces distractions, improves focus, and increases overall productivity during work sessions." },
+    { question: "How does the blocking schedule feature work?", answer: "It automatically activates website blocking during specified time periods and days of the week." },
+    { question: "What metrics are tracked in the insights dashboard?", answer: "Productive time, distracted time, focus score, completed sessions, and blocked sites count." },
+    { question: "What is the purpose of productivity tools?", answer: "To help users maintain focus, eliminate distractions, and track their work patterns for improvement." },
+    { question: "How does time management affect productivity?", answer: "Proper time management helps structure work sessions, provides regular breaks, and maintains sustained focus." },
+    { question: "What are the different timer preset options?", answer: "25 minutes for standard sessions, 15 minutes for shorter sessions, and 5 minutes for quick breaks." },
+    { question: "How is focus score calculated?", answer: "As a percentage of productive time versus total time including breaks and distractions." },
+    { question: "What happens during fullscreen timer mode?", answer: "The timer takes over the entire screen to minimize distractions and maximize focus." }
   ];
   
-  // Sort by total score (productive minutes)
-  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  const flashcards = mockFlashcards.slice(0, count).map((card, index) => ({
+    id: index + 1,
+    question: card.question,
+    answer: card.answer,
+    difficulty: difficulty
+  }));
   
-  res.json(leaderboard);
+  res.json({ flashcards, count: flashcards.length });
 });
 
 // Serve the main page

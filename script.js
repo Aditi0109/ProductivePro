@@ -153,14 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Watch demo button
-        const watchDemoButtons = document.querySelectorAll('button:contains("Watch Demo")');
-        document.addEventListener('click', function(e) {
-            if (e.target.textContent.includes('Watch Demo')) {
-                e.preventDefault();
-                showNotification('Demo video would open here', 'info');
-            }
-        });
+        // Watch demo button (removed as requested)
     }
     
     // Smooth scrolling for navigation links

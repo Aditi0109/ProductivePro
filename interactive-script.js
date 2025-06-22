@@ -10,8 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeWhitelistMode();
     initializeScheduleManager();
     initializeInsightsDashboard();
-    initializeNudgesSystem();
-    initializeLeaderboard();
+    initializeFocusFuel();
+    initializeSnapStudy();
     initializeMobileMenu();
     initializeScrollAnimations();
     
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateActiveNavLink() {
-        const sections = ['hero', 'features', 'contact'];
+        const sections = ['hero', 'features', 'snapStudy', 'contact'];
         const navLinks = document.querySelectorAll('.nav-link');
         
         let currentSection = '';
@@ -656,162 +656,437 @@ document.addEventListener('DOMContentLoaded', function() {
         loadInsights();
     }
 
-    // Enhanced Smart Nudges System Implementation
-    function initializeNudgesSystem() {
-        const nudgesListEl = document.getElementById('nudges-list');
-        const generateNudgeBtn = document.getElementById('generate-nudge');
-        const nudgePopup = document.getElementById('nudge-popup');
-        const nudgePopupMessage = document.getElementById('nudge-popup-message');
-        const nudgePopupDismiss = document.getElementById('nudge-popup-dismiss');
-        const nudgePopupSnooze = document.getElementById('nudge-popup-snooze');
+    // FocusFuel Motivational Quotes Implementation
+    function initializeFocusFuel() {
+        const quoteTextEl = document.getElementById('quote-text');
+        const quoteAuthorEl = document.getElementById('quote-author');
+        const getNewQuoteBtn = document.getElementById('get-new-quote');
+        const nextQuoteTimerEl = document.getElementById('next-quote-timer');
+        const focusFuelPopup = document.getElementById('focusfuel-popup');
+        const focusFuelPopupQuote = document.getElementById('focusfuel-popup-quote');
+        const focusFuelPopupAuthor = document.getElementById('focusfuel-popup-author');
+        const focusFuelPopupDismiss = document.getElementById('focusfuel-popup-dismiss');
         
-        const nudgeMessages = [
-            'Time for a 5-minute break to recharge your focus!',
-            'You\'ve been productive! Consider starting a new Pomodoro session.',
-            'Reminder: Stay hydrated and maintain good posture.',
-            'Great focus streak! Keep up the momentum.',
-            'Time to review your blocked sites list for optimization.',
-            'Consider taking a short walk to boost creativity.',
-            'Your blocking schedule has ended. Ready for your next focus session?',
-            'Productive session complete! Your focus score is improving.',
-            'Consider adding more sites to your block list based on recent distractions.'
+        let currentQuote = null;
+        let nextQuoteTimeout = null;
+        let lastQuoteTime = localStorage.getItem('lastQuoteTime') || 0;
+        
+        // Fallback quotes in case API fails
+        const fallbackQuotes = [
+            { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+            { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+            { text: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle" },
+            { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+            { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+            { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
+            { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+            { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+            { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+            { text: "Life is what happens to you while you're busy making other plans.", author: "John Lennon" }
         ];
         
-        async function loadNudges() {
+        async function fetchQuote() {
             try {
-                const response = await fetch('/api/nudges');
-                const nudges = await response.json();
-                
-                nudgesListEl.innerHTML = nudges.map(nudge => `
-                    <div class="bg-dark-500 px-3 py-2 rounded flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="text-purple-400 text-xs uppercase font-medium">${nudge.type.replace('_', ' ')}</div>
-                            <div class="text-white text-sm">${nudge.message}</div>
-                        </div>
-                        <button onclick="markNudgeRead(${nudge.id})" class="text-gray-400 hover:text-white text-xs ml-2">
-                            ✓
-                        </button>
-                    </div>
-                `).join('') || '<div class="text-gray-400 text-sm text-center">No new nudges</div>';
+                // Try to get quote from a free API
+                const response = await fetch('https://api.quotable.io/random?tags=motivational|inspirational|success|wisdom');
+                if (response.ok) {
+                    const quote = await response.json();
+                    return { text: quote.content, author: quote.author };
+                } else {
+                    throw new Error('API not available');
+                }
             } catch (error) {
-                showNotification('Failed to load nudges', 'error');
+                // Fallback to local quotes
+                return fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
             }
         }
         
-        // Global function to show smart nudge popup
-        window.showSmartNudge = function(message, type = 'general') {
-            nudgePopupMessage.textContent = message;
-            nudgePopup.classList.remove('hidden');
+        async function loadNewQuote() {
+            quoteTextEl.textContent = 'Loading new quote...';
+            quoteAuthorEl.textContent = '';
             
-            // Auto-dismiss after 10 seconds
-            setTimeout(() => {
-                if (!nudgePopup.classList.contains('hidden')) {
-                    nudgePopup.classList.add('hidden');
-                }
-            }, 10000);
-            
-            feather.replace();
-        };
-        
-        // Nudge popup event handlers
-        nudgePopupDismiss.addEventListener('click', function() {
-            nudgePopup.classList.add('hidden');
-        });
-        
-        nudgePopupSnooze.addEventListener('click', function() {
-            nudgePopup.classList.add('hidden');
-            // Show again in 5 minutes
-            setTimeout(() => {
-                showSmartNudge(nudgePopupMessage.textContent);
-            }, 5 * 60 * 1000);
-            showNotification('Nudge snoozed for 5 minutes', 'info');
-        });
-        
-        generateNudgeBtn.addEventListener('click', function() {
-            const randomMessage = nudgeMessages[Math.floor(Math.random() * nudgeMessages.length)];
-            
-            // Show popup instead of adding to list
-            showSmartNudge(randomMessage);
-            
-            // Also add to the nudges list for reference
-            const nudgeHtml = `
-                <div class="bg-dark-500 px-3 py-2 rounded flex justify-between items-start animate-pulse">
-                    <div class="flex-1">
-                        <div class="text-purple-400 text-xs uppercase font-medium">Smart Suggestion</div>
-                        <div class="text-white text-sm">${randomMessage}</div>
-                    </div>
-                    <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-white text-xs ml-2">
-                        ✓
-                    </button>
-                </div>
-            `;
-            
-            if (nudgesListEl.children.length === 1 && nudgesListEl.textContent.includes('No new nudges')) {
-                nudgesListEl.innerHTML = nudgeHtml;
-            } else {
-                nudgesListEl.insertAdjacentHTML('afterbegin', nudgeHtml);
-            }
-        });
-        
-        window.markNudgeRead = async function(id) {
             try {
-                await fetch(`/api/nudges/${id}/read`, { method: 'POST' });
-                loadNudges();
+                currentQuote = await fetchQuote();
+                quoteTextEl.textContent = `"${currentQuote.text}"`;
+                quoteAuthorEl.textContent = `— ${currentQuote.author}`;
+                localStorage.setItem('lastQuoteTime', Date.now().toString());
+                showNotification('New quote loaded', 'success');
             } catch (error) {
-                // Still remove from UI for demo
-                loadNudges();
+                showNotification('Failed to load quote', 'error');
+                // Use fallback
+                currentQuote = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+                quoteTextEl.textContent = `"${currentQuote.text}"`;
+                quoteAuthorEl.textContent = `— ${currentQuote.author}`;
             }
-        };
+        }
         
-        loadNudges();
+        function showQuotePopup() {
+            if (currentQuote) {
+                focusFuelPopupQuote.textContent = `"${currentQuote.text}"`;
+                focusFuelPopupAuthor.textContent = `— ${currentQuote.author}`;
+                focusFuelPopup.classList.remove('hidden');
+                
+                // Auto-dismiss after 15 seconds
+                setTimeout(() => {
+                    if (!focusFuelPopup.classList.contains('hidden')) {
+                        focusFuelPopup.classList.add('hidden');
+                    }
+                }, 15000);
+                
+                feather.replace();
+            }
+        }
+        
+        function updateTimer() {
+            const now = Date.now();
+            const lastQuote = parseInt(localStorage.getItem('lastQuoteTime') || '0');
+            const hourInMs = 60 * 60 * 1000;
+            const nextQuoteTime = lastQuote + hourInMs;
+            const timeUntilNext = nextQuoteTime - now;
+            
+            if (timeUntilNext <= 0) {
+                nextQuoteTimerEl.textContent = 'Ready for new quote!';
+                loadNewQuote().then(() => {
+                    showQuotePopup();
+                });
+            } else {
+                const minutes = Math.floor(timeUntilNext / (60 * 1000));
+                const seconds = Math.floor((timeUntilNext % (60 * 1000)) / 1000);
+                nextQuoteTimerEl.textContent = `Next quote in: ${minutes}m ${seconds}s`;
+            }
+        }
+        
+        // Event handlers
+        getNewQuoteBtn.addEventListener('click', loadNewQuote);
+        
+        focusFuelPopupDismiss.addEventListener('click', function() {
+            focusFuelPopup.classList.add('hidden');
+        });
+        
+        // Initialize quote system
+        setInterval(updateTimer, 1000); // Update timer every second
+        
+        // Load initial quote if none exists or it's been more than an hour
+        const now = Date.now();
+        const lastQuote = parseInt(localStorage.getItem('lastQuoteTime') || '0');
+        if (now - lastQuote >= 60 * 60 * 1000 || !lastQuote) {
+            loadNewQuote();
+        } else {
+            // Load the last quote from storage if available
+            const savedQuote = localStorage.getItem('currentQuote');
+            if (savedQuote) {
+                try {
+                    currentQuote = JSON.parse(savedQuote);
+                    quoteTextEl.textContent = `"${currentQuote.text}"`;
+                    quoteAuthorEl.textContent = `— ${currentQuote.author}`;
+                } catch (e) {
+                    loadNewQuote();
+                }
+            } else {
+                loadNewQuote();
+            }
+        }
+        
+        updateTimer();
+        
+        // Save current quote to localStorage for persistence
+        function saveCurrentQuote() {
+            if (currentQuote) {
+                localStorage.setItem('currentQuote', JSON.stringify(currentQuote));
+            }
+        }
+        
+        // Update the loadNewQuote function to save the quote
+        const originalLoadNewQuote = loadNewQuote;
+        loadNewQuote = async function() {
+            await originalLoadNewQuote();
+            saveCurrentQuote();
+        };
     }
 
-    // Leaderboard Implementation
-    function initializeLeaderboard() {
-        const leaderboardListEl = document.getElementById('leaderboard-list');
-        const refreshLeaderboardBtn = document.getElementById('refresh-leaderboard');
+    // SnapStudy PDF to Flashcards Implementation
+    function initializeSnapStudy() {
+        const pdfUploadEl = document.getElementById('pdf-upload');
+        const mainPdfUploadEl = document.getElementById('main-pdf-upload');
+        const browsePdfBtn = document.getElementById('browse-pdf');
+        const generateFlashcardsBtn = document.getElementById('generate-flashcards');
+        const mainGenerateFlashcardsBtn = document.getElementById('main-generate-flashcards');
+        const openFlashcardsBtn = document.getElementById('open-flashcards');
+        const openStudyModeBtn = document.getElementById('open-study-mode');
+        const pdfStatusEl = document.getElementById('pdf-status');
+        const uploadStatusEl = document.getElementById('upload-status');
+        const flashcardResultsEl = document.getElementById('flashcard-results');
+        const flashcardPreviewEl = document.getElementById('flashcard-preview');
+        const flashcardInfoEl = document.getElementById('flashcard-info');
+        const flashcardCountSelect = document.getElementById('flashcard-count');
+        const difficultyLevelSelect = document.getElementById('difficulty-level');
         
-        async function loadLeaderboard() {
-            try {
-                const response = await fetch('/api/leaderboard');
-                const leaderboard = await response.json();
+        // Flashcard modal elements
+        const flashcardModal = document.getElementById('flashcard-modal');
+        const closeFlashcardModalBtn = document.getElementById('close-flashcard-modal');
+        const flashcardContentEl = document.getElementById('flashcard-content');
+        const flipCardBtn = document.getElementById('flip-card');
+        const prevCardBtn = document.getElementById('prev-card');
+        const nextCardBtn = document.getElementById('next-card');
+        const cardCounterEl = document.getElementById('card-counter');
+        
+        let uploadedFile = null;
+        let generatedFlashcards = [];
+        let currentCardIndex = 0;
+        let showingAnswer = false;
+        
+        // Mock flashcard generation for demo (would use PDF text extraction + AI API in production)
+        const mockFlashcards = [
+            { question: "What is the main concept discussed in the document?", answer: "The document discusses productivity techniques and focus management strategies." },
+            { question: "According to the text, what is the Pomodoro Technique?", answer: "A time management method using 25-minute focused work sessions followed by short breaks." },
+            { question: "What are the benefits of website blocking mentioned?", answer: "Reduces distractions, improves focus, and increases overall productivity during work sessions." },
+            { question: "How does the blocking schedule feature work?", answer: "It automatically activates website blocking during specified time periods and days of the week." },
+            { question: "What metrics are tracked in the insights dashboard?", answer: "Productive time, distracted time, focus score, completed sessions, and blocked sites count." },
+            { question: "What is the purpose of smart nudges?", answer: "To provide intelligent reminders and suggestions based on user activity and productivity patterns." },
+            { question: "How does the leaderboard motivate users?", answer: "By showing user rankings based on productivity scores and encouraging friendly competition." },
+            { question: "What are the different timer preset options?", answer: "25 minutes for standard Pomodoro, 15 minutes for shorter sessions, and 5 minutes for quick breaks." },
+            { question: "How is the focus score calculated?", answer: "As a percentage of productive time versus total time including breaks and distractions." },
+            { question: "What happens during fullscreen timer mode?", answer: "The timer takes over the entire screen to minimize distractions and maximize focus." }
+        ];
+        
+        function handleFileUpload(file) {
+            if (file && file.type === 'application/pdf') {
+                uploadedFile = file;
+                const fileName = file.name;
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
                 
-                leaderboardListEl.innerHTML = leaderboard.map((entry, index) => {
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-                    const isCurrentUser = entry.user.firstName === 'Demo';
-                    
-                    return `
-                        <div class="flex justify-between items-center bg-dark-500 px-3 py-2 rounded ${isCurrentUser ? 'ring-2 ring-accent-500' : ''}">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-lg">${medal || `#${index + 1}`}</span>
-                                <div>
-                                    <div class="text-white text-sm font-medium">
-                                        ${entry.user.firstName} ${entry.user.lastName} ${isCurrentUser ? '(You)' : ''}
-                                    </div>
-                                    <div class="text-gray-400 text-xs">${entry.streakDays} sessions completed</div>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-yellow-400 font-bold">${entry.totalScore}</div>
-                                <div class="text-gray-400 text-xs">productive mins</div>
+                if (pdfStatusEl) pdfStatusEl.textContent = `Selected: ${fileName} (${fileSize} MB)`;
+                if (uploadStatusEl) uploadStatusEl.textContent = `Uploaded: ${fileName} (${fileSize} MB)`;
+                
+                // Enable generate buttons
+                if (generateFlashcardsBtn) generateFlashcardsBtn.disabled = false;
+                if (mainGenerateFlashcardsBtn) mainGenerateFlashcardsBtn.disabled = false;
+                
+                showNotification('PDF uploaded successfully', 'success');
+            } else {
+                showNotification('Please select a valid PDF file', 'error');
+            }
+        }
+        
+        async function generateFlashcards() {
+            if (!uploadedFile) {
+                showNotification('Please upload a PDF first', 'error');
+                return;
+            }
+            
+            const count = flashcardCountSelect ? parseInt(flashcardCountSelect.value) : 10;
+            const difficulty = difficultyLevelSelect ? difficultyLevelSelect.value : 'medium';
+            
+            // Show loading state
+            if (mainGenerateFlashcardsBtn) {
+                mainGenerateFlashcardsBtn.textContent = 'Generating...';
+                mainGenerateFlashcardsBtn.disabled = true;
+            }
+            
+            try {
+                // Simulate API call delay
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // In a real implementation, this would:
+                // 1. Extract text from PDF using PDF.js or similar
+                // 2. Send text to AI API (like OpenAI GPT) to generate flashcards
+                // 3. Parse and format the response
+                
+                // For demo, use mock data
+                generatedFlashcards = mockFlashcards.slice(0, count).map((card, index) => ({
+                    id: index + 1,
+                    question: card.question,
+                    answer: card.answer,
+                    difficulty: difficulty
+                }));
+                
+                displayFlashcardResults();
+                showNotification(`Generated ${count} flashcards successfully`, 'success');
+                
+            } catch (error) {
+                showNotification('Failed to generate flashcards', 'error');
+            } finally {
+                if (mainGenerateFlashcardsBtn) {
+                    mainGenerateFlashcardsBtn.textContent = 'Generate Flashcards';
+                    mainGenerateFlashcardsBtn.disabled = false;
+                }
+            }
+        }
+        
+        function displayFlashcardResults() {
+            if (!flashcardResultsEl) return;
+            
+            flashcardResultsEl.classList.remove('hidden');
+            
+            if (flashcardInfoEl) {
+                flashcardInfoEl.textContent = `${generatedFlashcards.length} flashcards ready for study`;
+            }
+            
+            if (flashcardPreviewEl) {
+                flashcardPreviewEl.innerHTML = generatedFlashcards.slice(0, 4).map(card => `
+                    <div class="bg-dark-500 rounded-lg p-4 border border-dark-400">
+                        <div class="text-blue-400 text-xs uppercase font-medium mb-2">Question ${card.id}</div>
+                        <div class="text-white text-sm">${card.question}</div>
+                        <div class="text-gray-400 text-xs mt-2">Difficulty: ${card.difficulty}</div>
+                    </div>
+                `).join('');
+                
+                if (generatedFlashcards.length > 4) {
+                    flashcardPreviewEl.innerHTML += `
+                        <div class="bg-dark-500 rounded-lg p-4 border border-dark-400 flex items-center justify-center">
+                            <div class="text-gray-400 text-center">
+                                <div class="text-lg font-bold">+${generatedFlashcards.length - 4}</div>
+                                <div class="text-xs">more cards</div>
                             </div>
                         </div>
                     `;
-                }).join('');
-            } catch (error) {
-                showNotification('Failed to load leaderboard', 'error');
+                }
             }
+            
+            // Enable study mode button
+            if (openStudyModeBtn) openStudyModeBtn.disabled = false;
+            if (openFlashcardsBtn) openFlashcardsBtn.disabled = false;
         }
         
-        refreshLeaderboardBtn.addEventListener('click', function() {
-            loadLeaderboard();
-            showNotification('Leaderboard refreshed', 'info');
-        });
+        function openStudyMode() {
+            if (generatedFlashcards.length === 0) {
+                showNotification('Generate flashcards first', 'error');
+                return;
+            }
+            
+            currentCardIndex = 0;
+            showingAnswer = false;
+            flashcardModal.classList.remove('hidden');
+            displayCurrentCard();
+            feather.replace();
+        }
         
-        loadLeaderboard();
+        function displayCurrentCard() {
+            const card = generatedFlashcards[currentCardIndex];
+            if (!card) return;
+            
+            if (showingAnswer) {
+                flashcardContentEl.innerHTML = `
+                    <div class="mb-4">
+                        <div class="text-blue-400 text-sm uppercase font-medium mb-2">Question</div>
+                        <div class="text-gray-300 mb-4">${card.question}</div>
+                        <div class="text-green-400 text-sm uppercase font-medium mb-2">Answer</div>
+                        <div class="text-white text-lg">${card.answer}</div>
+                    </div>
+                `;
+                flipCardBtn.textContent = 'Next Question';
+            } else {
+                flashcardContentEl.innerHTML = `
+                    <div class="text-blue-400 text-sm uppercase font-medium mb-4">Question ${card.id}</div>
+                    <div class="text-white text-lg">${card.question}</div>
+                `;
+                flipCardBtn.textContent = 'Show Answer';
+            }
+            
+            cardCounterEl.textContent = `${currentCardIndex + 1} / ${generatedFlashcards.length}`;
+            
+            // Update button states
+            prevCardBtn.disabled = currentCardIndex === 0;
+            nextCardBtn.disabled = currentCardIndex === generatedFlashcards.length - 1;
+        }
+        
+        // Event handlers
+        if (browsePdfBtn && mainPdfUploadEl) {
+            browsePdfBtn.addEventListener('click', () => mainPdfUploadEl.click());
+            mainPdfUploadEl.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleFileUpload(e.target.files[0]);
+            });
+        }
+        
+        if (pdfUploadEl) {
+            pdfUploadEl.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleFileUpload(e.target.files[0]);
+            });
+        }
+        
+        if (generateFlashcardsBtn) {
+            generateFlashcardsBtn.addEventListener('click', generateFlashcards);
+        }
+        
+        if (mainGenerateFlashcardsBtn) {
+            mainGenerateFlashcardsBtn.addEventListener('click', generateFlashcards);
+        }
+        
+        if (openFlashcardsBtn) {
+            openFlashcardsBtn.addEventListener('click', openStudyMode);
+        }
+        
+        if (openStudyModeBtn) {
+            openStudyModeBtn.addEventListener('click', openStudyMode);
+        }
+        
+        if (closeFlashcardModalBtn) {
+            closeFlashcardModalBtn.addEventListener('click', () => {
+                flashcardModal.classList.add('hidden');
+            });
+        }
+        
+        if (flipCardBtn) {
+            flipCardBtn.addEventListener('click', () => {
+                if (showingAnswer) {
+                    // Move to next card
+                    if (currentCardIndex < generatedFlashcards.length - 1) {
+                        currentCardIndex++;
+                        showingAnswer = false;
+                        displayCurrentCard();
+                    }
+                } else {
+                    // Show answer
+                    showingAnswer = true;
+                    displayCurrentCard();
+                }
+            });
+        }
+        
+        if (prevCardBtn) {
+            prevCardBtn.addEventListener('click', () => {
+                if (currentCardIndex > 0) {
+                    currentCardIndex--;
+                    showingAnswer = false;
+                    displayCurrentCard();
+                }
+            });
+        }
+        
+        if (nextCardBtn) {
+            nextCardBtn.addEventListener('click', () => {
+                if (currentCardIndex < generatedFlashcards.length - 1) {
+                    currentCardIndex++;
+                    showingAnswer = false;
+                    displayCurrentCard();
+                }
+            });
+        }
+        
+        // Drag and drop support
+        const dropZone = document.querySelector('.border-dashed');
+        if (dropZone) {
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-blue-500', 'bg-blue-50');
+            });
+            
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                
+                const files = e.dataTransfer.files;
+                if (files[0]) handleFileUpload(files[0]);
+            });
+        }
     }
 
-    // Mobile menu functionality (existing)
+    // Mobile Menu Implementation  
     function initializeMobileMenu() {
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -819,6 +1094,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mobileMenuBtn && mobileMenu) {
             mobileMenuBtn.addEventListener('click', function() {
                 mobileMenu.classList.toggle('hidden');
+                
+                // Change icon
                 const icon = mobileMenuBtn.querySelector('i');
                 if (mobileMenu.classList.contains('hidden')) {
                     icon.setAttribute('data-feather', 'menu');
@@ -891,6 +1168,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
         
         setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+    }
             if (notification.parentNode) {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => notification.remove(), 300);
