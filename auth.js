@@ -9,13 +9,27 @@ document.addEventListener('DOMContentLoaded', function() {
     setupAuthEventListeners();
 });
 
-function initializeGoogleAuth() {
-    // Initialize Google Identity Services
-    google.accounts.id.initialize({
-        client_id: '1087816387409-9dgnvv0vvvfl8j1tvn1k8e4h3a9klfcm.apps.googleusercontent.com', // This will be replaced with actual client ID
-        callback: handleGoogleResponse,
-        auto_select: true
-    });
+async function initializeGoogleAuth() {
+    try {
+        // Fetch configuration from server
+        const configResponse = await fetch('/api/config');
+        const config = await configResponse.json();
+        
+        if (!config.authConfigured) {
+            showGoogleLoginPrompt();
+            return;
+        }
+        
+        // Initialize Google Identity Services with dynamic client ID
+        google.accounts.id.initialize({
+            client_id: config.googleClientId,
+            callback: handleGoogleResponse,
+            auto_select: true
+        });
+    } catch (error) {
+        console.error('Failed to initialize Google Auth:', error);
+        showGoogleLoginPrompt();
+    }
 }
 
 async function checkExistingAuth() {

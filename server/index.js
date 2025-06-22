@@ -19,7 +19,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Google OAuth client
-const googleClient = new OAuth2Client('1087816387409-9dgnvv0vvvfl8j1tvn1k8e4h3a9klfcm.apps.googleusercontent.com');
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'demo-client-id';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Middleware
 app.use(cors({
@@ -703,6 +704,14 @@ Return the response in the following JSON format:
       error: 'Failed to generate flashcards: ' + error.message
     });
   }
+});
+
+// Configuration endpoint for frontend
+app.get('/api/config', (req, res) => {
+  res.json({
+    googleClientId: GOOGLE_CLIENT_ID,
+    authConfigured: GOOGLE_CLIENT_ID !== 'demo-client-id'
+  });
 });
 
 // Serve the main page
