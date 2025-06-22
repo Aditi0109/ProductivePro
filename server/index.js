@@ -4,7 +4,16 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const { OAuth2Client } = require('google-auth-library');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const { spawn } = require('child_process');
+const OpenAI = require('openai');
+const fs = require('fs');
 require('dotenv').config();
+
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +29,21 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('.'));
+
+// Configure multer for PDF uploads
+const upload = multer({
+  dest: 'uploads/',
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // In-memory user sessions (in production this would use database/Redis)
 const userSessions = new Map();
@@ -475,31 +499,150 @@ app.get('/api/focusfuel/quote', async (req, res) => {
 });
 
 // SnapStudy Routes
-app.post('/api/snapstudy/generate', (req, res) => {
-  const { count = 10, difficulty = 'medium' } = req.body;
-  
-  // Mock flashcard generation (in production would use PDF extraction + AI)
-  const mockFlashcards = [
-    { question: "What is the main concept discussed in the document?", answer: "The document discusses productivity techniques and focus management strategies." },
-    { question: "According to the text, what is the Pomodoro Technique?", answer: "A time management method using 25-minute focused work sessions followed by short breaks." },
-    { question: "What are the benefits of website blocking mentioned?", answer: "Reduces distractions, improves focus, and increases overall productivity during work sessions." },
-    { question: "How does the blocking schedule feature work?", answer: "It automatically activates website blocking during specified time periods and days of the week." },
-    { question: "What metrics are tracked in the insights dashboard?", answer: "Productive time, distracted time, focus score, completed sessions, and blocked sites count." },
-    { question: "What is the purpose of productivity tools?", answer: "To help users maintain focus, eliminate distractions, and track their work patterns for improvement." },
-    { question: "How does time management affect productivity?", answer: "Proper time management helps structure work sessions, provides regular breaks, and maintains sustained focus." },
-    { question: "What are the different timer preset options?", answer: "25 minutes for standard sessions, 15 minutes for shorter sessions, and 5 minutes for quick breaks." },
-    { question: "How is focus score calculated?", answer: "As a percentage of productive time versus total time including breaks and distractions." },
-    { question: "What happens during fullscreen timer mode?", answer: "The timer takes over the entire screen to minimize distractions and maximize focus." }
-  ];
-  
-  const flashcards = mockFlashcards.slice(0, count).map((card, index) => ({
-    id: index + 1,
-    question: card.question,
-    answer: card.answer,
-    difficulty: difficulty
-  }));
-  
-  res.json({ flashcards, count: flashcards.length });
+app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No PDF file uploaded' });
+    }
+
+    const pdfPath = req.file.path;
+    
+    // Extract text from PDF using Python script
+    const pythonProcess = spawn('python3', ['server/pdf_processor.py', pdfPath]);
+    
+    let textContent = '';
+    let errorContent = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      textContent += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      errorContent += data.toString();
+    });
+    
+    pythonProcess.on('close', (code) => {
+      // Clean up uploaded file
+      fs.unlink(pdfPath, () => {});
+      
+      if (code !== 0) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'PDF processing failed: ' + errorContent 
+        });
+      }
+      
+      try {
+        const result = JSON.parse(textContent);
+        if (result.success) {
+          res.json({
+            success: true,
+            textContent: result.text_content,
+            message: 'PDF uploaded and processed successfully'
+          });
+        } else {
+          res.status(500).json(result);
+        }
+      } catch (parseError) {
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to parse PDF extraction result' 
+        });
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error: ' + error.message 
+    });
+  }
+});
+
+app.post('/api/snapstudy/generate', async (req, res) => {
+  try {
+    const { textContent, count = 10, difficulty = 'medium' } = req.body;
+    
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(400).json({
+        success: false,
+        error: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.'
+      });
+    }
+    
+    if (!textContent) {
+      return res.status(400).json({
+        success: false,
+        error: 'No text content provided for flashcard generation'
+      });
+    }
+
+    // Generate flashcards using OpenAI
+    const prompt = `Based on the following text content, generate exactly ${count} educational flashcards at ${difficulty} difficulty level.
+
+Text content:
+${textContent.substring(0, 3000)} // Limit text to avoid token limits
+
+Please create flashcards that:
+1. Focus on key concepts, facts, and important information
+2. Are appropriate for ${difficulty} difficulty level
+3. Have clear, concise questions and comprehensive answers
+4. Cover different aspects of the material
+
+Return the response in the following JSON format:
+{
+  "flashcards": [
+    {
+      "question": "Clear, specific question",
+      "answer": "Comprehensive answer"
+    }
+  ]
+}`;
+
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert educational content creator specializing in generating high-quality flashcards from academic material. Generate exactly the requested number of flashcards in valid JSON format."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    
+    if (!result.flashcards || !Array.isArray(result.flashcards)) {
+      throw new Error('Invalid response format from AI');
+    }
+
+    const flashcards = result.flashcards.slice(0, count).map((card, index) => ({
+      id: index + 1,
+      question: card.question,
+      answer: card.answer,
+      difficulty: difficulty
+    }));
+
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      count: flashcards.length,
+      difficulty: difficulty
+    });
+
+  } catch (error) {
+    console.error('Flashcard generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate flashcards: ' + error.message
+    });
+  }
 });
 
 // Serve the main page

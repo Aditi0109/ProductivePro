@@ -835,19 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentCardIndex = 0;
         let showingAnswer = false;
         
-        // Mock flashcard generation for demo (would use PDF text extraction + AI API in production)
-        const mockFlashcards = [
-            { question: "What is the main concept discussed in the document?", answer: "The document discusses productivity techniques and focus management strategies." },
-            { question: "According to the text, what is the Pomodoro Technique?", answer: "A time management method using 25-minute focused work sessions followed by short breaks." },
-            { question: "What are the benefits of website blocking mentioned?", answer: "Reduces distractions, improves focus, and increases overall productivity during work sessions." },
-            { question: "How does the blocking schedule feature work?", answer: "It automatically activates website blocking during specified time periods and days of the week." },
-            { question: "What metrics are tracked in the insights dashboard?", answer: "Productive time, distracted time, focus score, completed sessions, and blocked sites count." },
-            { question: "What is the purpose of smart nudges?", answer: "To provide intelligent reminders and suggestions based on user activity and productivity patterns." },
-            { question: "How does the leaderboard motivate users?", answer: "By showing user rankings based on productivity scores and encouraging friendly competition." },
-            { question: "What are the different timer preset options?", answer: "25 minutes for standard Pomodoro, 15 minutes for shorter sessions, and 5 minutes for quick breaks." },
-            { question: "How is the focus score calculated?", answer: "As a percentage of productive time versus total time including breaks and distractions." },
-            { question: "What happens during fullscreen timer mode?", answer: "The timer takes over the entire screen to minimize distractions and maximize focus." }
-        ];
+
         
         function handleFileUpload(file) {
             if (file && file.type === 'application/pdf') {
@@ -879,32 +867,66 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show loading state
             if (mainGenerateFlashcardsBtn) {
-                mainGenerateFlashcardsBtn.textContent = 'Generating...';
+                mainGenerateFlashcardsBtn.textContent = 'Processing PDF...';
                 mainGenerateFlashcardsBtn.disabled = true;
             }
             
             try {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Step 1: Upload and extract text from PDF
+                const formData = new FormData();
+                formData.append('pdf', uploadedFile);
                 
-                // In a real implementation, this would:
-                // 1. Extract text from PDF using PDF.js or similar
-                // 2. Send text to AI API (like OpenAI GPT) to generate flashcards
-                // 3. Parse and format the response
+                const uploadResponse = await fetch('/api/snapstudy/upload', {
+                    method: 'POST',
+                    body: formData
+                });
                 
-                // For demo, use mock data
-                generatedFlashcards = mockFlashcards.slice(0, count).map((card, index) => ({
-                    id: index + 1,
-                    question: card.question,
-                    answer: card.answer,
-                    difficulty: difficulty
-                }));
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload PDF');
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                
+                if (!uploadResult.success) {
+                    throw new Error(uploadResult.error || 'PDF processing failed');
+                }
+                
+                // Update loading state
+                if (mainGenerateFlashcardsBtn) {
+                    mainGenerateFlashcardsBtn.textContent = 'Generating flashcards...';
+                }
+                
+                // Step 2: Generate flashcards using AI
+                const generateResponse = await fetch('/api/snapstudy/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        textContent: uploadResult.textContent,
+                        count: count,
+                        difficulty: difficulty
+                    })
+                });
+                
+                if (!generateResponse.ok) {
+                    throw new Error('Failed to generate flashcards');
+                }
+                
+                const generateResult = await generateResponse.json();
+                
+                if (!generateResult.success) {
+                    throw new Error(generateResult.error || 'Flashcard generation failed');
+                }
+                
+                generatedFlashcards = generateResult.flashcards || [];
                 
                 displayFlashcardResults();
-                showNotification(`Generated ${count} flashcards successfully`, 'success');
+                showNotification(`Generated ${generatedFlashcards.length} flashcards successfully`, 'success');
                 
             } catch (error) {
-                showNotification('Failed to generate flashcards', 'error');
+                console.error('Flashcard generation error:', error);
+                showNotification(error.message || 'Failed to generate flashcards', 'error');
             } finally {
                 if (mainGenerateFlashcardsBtn) {
                     mainGenerateFlashcardsBtn.textContent = 'Generate Flashcards';
