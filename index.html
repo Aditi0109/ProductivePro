@@ -67,7 +67,6 @@
                 <div class="hidden md:flex items-center space-x-8">
                     <a href="#hero" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Home</a>
                     <a href="#features" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Features</a>
-                    <a href="#pricing" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Pricing</a>
                     <a href="#contact" class="nav-link text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
                     <button class="bg-accent-600 hover:bg-accent-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium">
                         Get Started
@@ -88,7 +87,6 @@
             <div class="px-4 py-4 space-y-4">
                 <a href="#hero" class="block text-gray-300 hover:text-white transition-colors duration-200">Home</a>
                 <a href="#features" class="block text-gray-300 hover:text-white transition-colors duration-200">Features</a>
-                <a href="#pricing" class="block text-gray-300 hover:text-white transition-colors duration-200">Pricing</a>
                 <a href="#contact" class="block text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
                 <button class="w-full bg-accent-600 hover:bg-accent-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium">
                     Get Started
@@ -391,120 +389,56 @@
         </div>
     </section>
 
-    <!-- Pricing Section -->
-    <section id="pricing" class="py-20 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">
-                    Simple, Transparent Pricing
-                </h2>
-                <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-                    Choose the plan that works best for you. Upgrade or downgrade at any time.
-                </p>
+    <!-- Fullscreen Timer Modal -->
+    <div id="fullscreen-timer" class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden flex items-center justify-center">
+        <div class="text-center">
+            <div id="fullscreen-timer-display" class="text-8xl md:text-9xl font-bold text-white mb-8">25:00</div>
+            <div id="fullscreen-timer-status" class="text-2xl text-gray-300 mb-12">Ready to focus</div>
+            
+            <div class="flex space-x-6 justify-center mb-8">
+                <button id="fullscreen-start-timer" class="bg-accent-600 hover:bg-accent-700 text-white px-8 py-4 rounded-lg text-xl font-medium transition-colors">
+                    Start
+                </button>
+                <button id="fullscreen-pause-timer" class="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-4 rounded-lg text-xl font-medium transition-colors" disabled>
+                    Pause
+                </button>
+                <button id="fullscreen-stop-timer" class="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg text-xl font-medium transition-colors" disabled>
+                    Stop
+                </button>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                <!-- Free Plan -->
-                <div class="pricing-card bg-dark-700 rounded-xl p-8 border border-dark-600">
-                    <div class="text-center mb-8">
-                        <h3 class="text-xl font-semibold text-white mb-2">Free</h3>
-                        <div class="text-3xl font-bold text-white mb-1">$0</div>
-                        <div class="text-gray-400">per month</div>
-                    </div>
-                    <ul class="space-y-3 mb-8">
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Basic site blocking
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Pomodoro timer
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Basic insights
-                        </li>
-                    </ul>
-                    <button class="w-full bg-dark-600 hover:bg-dark-500 text-white py-3 rounded-lg transition-colors duration-200">
-                        Get Started
-                    </button>
-                </div>
+            <div class="flex space-x-4 justify-center mb-8">
+                <button class="fullscreen-timer-preset bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded text-lg" data-duration="25">25min</button>
+                <button class="fullscreen-timer-preset bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded text-lg" data-duration="15">15min</button>
+                <button class="fullscreen-timer-preset bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded text-lg" data-duration="5">5min</button>
+            </div>
+            
+            <button id="exit-fullscreen" class="text-gray-400 hover:text-white text-lg">
+                <i data-feather="x" class="w-6 h-6 inline mr-2"></i>Exit Fullscreen
+            </button>
+        </div>
+    </div>
 
-                <!-- Pro Plan -->
-                <div class="pricing-card bg-gradient-to-b from-accent-600 to-accent-700 rounded-xl p-8 border-2 border-accent-500 relative">
-                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                        <span class="bg-accent-500 text-white px-4 py-1 rounded-full text-sm font-medium">
-                            Most Popular
-                        </span>
+    <!-- Smart Nudge Popup -->
+    <div id="nudge-popup" class="fixed top-4 right-4 z-50 hidden">
+        <div class="bg-purple-600 text-white p-6 rounded-lg shadow-2xl max-w-sm animate-pulse">
+            <div class="flex items-start space-x-3">
+                <i data-feather="bell" class="w-6 h-6 text-purple-200 mt-1 flex-shrink-0"></i>
+                <div class="flex-1">
+                    <h4 class="font-semibold mb-2">Smart Nudge</h4>
+                    <p id="nudge-popup-message" class="text-purple-100 text-sm mb-4"></p>
+                    <div class="flex space-x-2">
+                        <button id="nudge-popup-dismiss" class="bg-purple-700 hover:bg-purple-800 text-white px-3 py-1 rounded text-sm">
+                            Dismiss
+                        </button>
+                        <button id="nudge-popup-snooze" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm">
+                            Snooze 5m
+                        </button>
                     </div>
-                    <div class="text-center mb-8">
-                        <h3 class="text-xl font-semibold text-white mb-2">Pro</h3>
-                        <div class="text-3xl font-bold text-white mb-1">$9</div>
-                        <div class="text-gray-200">per month</div>
-                    </div>
-                    <ul class="space-y-3 mb-8">
-                        <li class="flex items-center text-white">
-                            <i data-feather="check" class="w-5 h-5 text-white mr-3"></i>
-                            Everything in Free
-                        </li>
-                        <li class="flex items-center text-white">
-                            <i data-feather="check" class="w-5 h-5 text-white mr-3"></i>
-                            Advanced blocking rules
-                        </li>
-                        <li class="flex items-center text-white">
-                            <i data-feather="check" class="w-5 h-5 text-white mr-3"></i>
-                            Whitelist mode
-                        </li>
-                        <li class="flex items-center text-white">
-                            <i data-feather="check" class="w-5 h-5 text-white mr-3"></i>
-                            Scheduling & automation
-                        </li>
-                        <li class="flex items-center text-white">
-                            <i data-feather="check" class="w-5 h-5 text-white mr-3"></i>
-                            Detailed analytics
-                        </li>
-                    </ul>
-                    <button class="w-full bg-white text-accent-600 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200">
-                        Start Free Trial
-                    </button>
-                </div>
-
-                <!-- Enterprise Plan -->
-                <div class="pricing-card bg-dark-700 rounded-xl p-8 border border-dark-600">
-                    <div class="text-center mb-8">
-                        <h3 class="text-xl font-semibold text-white mb-2">Enterprise</h3>
-                        <div class="text-3xl font-bold text-white mb-1">$29</div>
-                        <div class="text-gray-400">per month</div>
-                    </div>
-                    <ul class="space-y-3 mb-8">
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Everything in Pro
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Team management
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Advanced reporting
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Priority support
-                        </li>
-                        <li class="flex items-center text-gray-300">
-                            <i data-feather="check" class="w-5 h-5 text-green-500 mr-3"></i>
-                            Custom integrations
-                        </li>
-                    </ul>
-                    <button class="w-full bg-dark-600 hover:bg-dark-500 text-white py-3 rounded-lg transition-colors duration-200">
-                        Contact Sales
-                    </button>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
 
     <!-- Footer -->
     <footer id="contact" class="bg-dark-800 border-t border-dark-600 py-16 px-4 sm:px-6 lg:px-8">
@@ -543,7 +477,7 @@
                     <h4 class="text-white font-semibold mb-4">Product</h4>
                     <ul class="space-y-2">
                         <li><a href="#features" class="text-gray-400 hover:text-white transition-colors duration-200">Features</a></li>
-                        <li><a href="#pricing" class="text-gray-400 hover:text-white transition-colors duration-200">Pricing</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-white transition-colors duration-200">Contact</a></li>
                         <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">Download</a></li>
                         <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">Integrations</a></li>
                     </ul>

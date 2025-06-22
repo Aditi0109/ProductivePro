@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateActiveNavLink() {
-        const sections = ['hero', 'features', 'pricing', 'contact'];
+        const sections = ['hero', 'features', 'contact'];
         const navLinks = document.querySelectorAll('.nav-link');
         
         let currentSection = '';
@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let timeRemaining = 25 * 60; // 25 minutes in seconds
         let isRunning = false;
         let currentDuration = 25;
+        let isFullscreen = false;
         
         const timerDisplay = document.getElementById('timer-display');
         const timerStatus = document.getElementById('timer-status');
@@ -69,19 +70,63 @@ document.addEventListener('DOMContentLoaded', function() {
         const stopBtn = document.getElementById('stop-timer');
         const presetButtons = document.querySelectorAll('.timer-preset');
         
+        // Fullscreen elements
+        const fullscreenTimer = document.getElementById('fullscreen-timer');
+        const fullscreenTimerDisplay = document.getElementById('fullscreen-timer-display');
+        const fullscreenTimerStatus = document.getElementById('fullscreen-timer-status');
+        const fullscreenStartBtn = document.getElementById('fullscreen-start-timer');
+        const fullscreenPauseBtn = document.getElementById('fullscreen-pause-timer');
+        const fullscreenStopBtn = document.getElementById('fullscreen-stop-timer');
+        const fullscreenPresetButtons = document.querySelectorAll('.fullscreen-timer-preset');
+        const exitFullscreenBtn = document.getElementById('exit-fullscreen');
+        
         function updateDisplay() {
             const minutes = Math.floor(timeRemaining / 60);
             const seconds = timeRemaining % 60;
-            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const timeText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            timerDisplay.textContent = timeText;
+            if (isFullscreen) {
+                fullscreenTimerDisplay.textContent = timeText;
+            }
+        }
+        
+        function updateStatus(status) {
+            timerStatus.textContent = status;
+            if (isFullscreen) {
+                fullscreenTimerStatus.textContent = status;
+            }
         }
         
         function updateButtons() {
-            startBtn.disabled = isRunning;
-            pauseBtn.disabled = !isRunning;
-            stopBtn.disabled = !isRunning && timeRemaining === currentDuration * 60;
+            const buttons = [
+                { normal: startBtn, fullscreen: fullscreenStartBtn, disabled: isRunning },
+                { normal: pauseBtn, fullscreen: fullscreenPauseBtn, disabled: !isRunning },
+                { normal: stopBtn, fullscreen: fullscreenStopBtn, disabled: !isRunning && timeRemaining === currentDuration * 60 }
+            ];
+            
+            buttons.forEach(btn => {
+                btn.normal.disabled = btn.disabled;
+                btn.fullscreen.disabled = btn.disabled;
+            });
         }
         
-        startBtn.addEventListener('click', async function() {
+        function enterFullscreen() {
+            isFullscreen = true;
+            fullscreenTimer.classList.remove('hidden');
+            fullscreenTimer.classList.add('flex');
+            updateDisplay();
+            updateStatus(timerStatus.textContent);
+            feather.replace();
+        }
+        
+        function exitFullscreen() {
+            isFullscreen = false;
+            fullscreenTimer.classList.add('hidden');
+            fullscreenTimer.classList.remove('flex');
+        }
+        
+        async function startTimer() {
             if (!isRunning) {
                 try {
                     const response = await fetch('/api/pomodoro/start', {
@@ -92,7 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (response.ok) {
                         isRunning = true;
-                        timerStatus.textContent = 'Focus session in progress...';
+                        updateStatus('Focus session in progress...');
+                        
+                        // Enter fullscreen when starting timer
+                        enterFullscreen();
                         
                         currentTimer = setInterval(() => {
                             timeRemaining--;
@@ -110,29 +158,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     showNotification('Failed to start timer. Please try again.', 'error');
                 }
             }
-        });
+        }
+
+        startBtn.addEventListener('click', startTimer);
+        fullscreenStartBtn.addEventListener('click', startTimer);
         
-        pauseBtn.addEventListener('click', function() {
+        function pauseTimer() {
             if (isRunning) {
                 clearInterval(currentTimer);
                 isRunning = false;
-                timerStatus.textContent = 'Session paused';
+                updateStatus('Session paused');
                 updateButtons();
                 showNotification('Timer paused', 'info');
             }
-        });
-        
-        stopBtn.addEventListener('click', async function() {
+        }
+
+        async function stopTimer() {
             if (isRunning || timeRemaining < currentDuration * 60) {
                 try {
                     await fetch('/api/pomodoro/stop', { method: 'POST' });
                     resetTimer();
+                    exitFullscreen();
                     showNotification('Session stopped', 'warning');
                 } catch (error) {
                     resetTimer();
+                    exitFullscreen();
                 }
             }
-        });
+        }
+
+        pauseBtn.addEventListener('click', pauseTimer);
+        fullscreenPauseBtn.addEventListener('click', pauseTimer);
+        
+        stopBtn.addEventListener('click', stopTimer);
+        fullscreenStopBtn.addEventListener('click', stopTimer);
         
         async function completeTimer() {
             clearInterval(currentTimer);
@@ -140,13 +199,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             try {
                 await fetch('/api/pomodoro/complete', { method: 'POST' });
-                timerStatus.textContent = 'Session completed! Great work!';
+                updateStatus('Session completed! Great work!');
                 showNotification('Pomodoro session completed! Time for a break.', 'success');
+                
+                // Show smart nudge after completion
+                showSmartNudge('Excellent focus session! Consider taking a 5-minute break before your next task.');
                 
                 // Auto-refresh insights
                 refreshInsights();
+                
+                // Exit fullscreen after completion
+                setTimeout(() => {
+                    exitFullscreen();
+                }, 3000);
             } catch (error) {
-                timerStatus.textContent = 'Session completed!';
+                updateStatus('Session completed!');
+                setTimeout(() => {
+                    exitFullscreen();
+                }, 3000);
             }
             
             updateButtons();
@@ -156,24 +226,71 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(currentTimer);
             isRunning = false;
             timeRemaining = currentDuration * 60;
-            timerStatus.textContent = 'Ready to focus';
+            updateStatus('Ready to focus');
             updateDisplay();
             updateButtons();
         }
         
-        presetButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (!isRunning) {
-                    currentDuration = parseInt(this.dataset.duration);
-                    timeRemaining = currentDuration * 60;
-                    updateDisplay();
-                    timerStatus.textContent = `${currentDuration} minute session ready`;
-                    
-                    // Visual feedback
-                    presetButtons.forEach(b => b.classList.remove('bg-accent-500'));
-                    this.classList.add('bg-accent-500');
-                }
+        function setupPresetButtons(buttons, isFullscreenMode = false) {
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (!isRunning) {
+                        currentDuration = parseInt(this.dataset.duration);
+                        timeRemaining = currentDuration * 60;
+                        updateDisplay();
+                        updateStatus(`${currentDuration} minute session ready`);
+                        
+                        // Visual feedback
+                        buttons.forEach(b => {
+                            if (isFullscreenMode) {
+                                b.classList.remove('bg-accent-500');
+                                b.classList.add('bg-gray-700');
+                            } else {
+                                b.classList.remove('bg-accent-500');
+                            }
+                        });
+                        
+                        if (isFullscreenMode) {
+                            this.classList.remove('bg-gray-700');
+                            this.classList.add('bg-accent-500');
+                        } else {
+                            this.classList.add('bg-accent-500');
+                        }
+                    }
+                });
             });
+        }
+
+        setupPresetButtons(presetButtons, false);
+        setupPresetButtons(fullscreenPresetButtons, true);
+        
+        // Exit fullscreen button
+        exitFullscreenBtn.addEventListener('click', exitFullscreen);
+        
+        // Keyboard shortcuts for fullscreen mode
+        document.addEventListener('keydown', function(e) {
+            if (isFullscreen) {
+                switch(e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        if (isRunning) {
+                            pauseTimer();
+                        } else {
+                            startTimer();
+                        }
+                        break;
+                    case 'Escape':
+                        e.preventDefault();
+                        exitFullscreen();
+                        break;
+                    case 'KeyS':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            stopTimer();
+                        }
+                        break;
+                }
+            }
         });
         
         updateDisplay();
@@ -393,13 +510,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     loadSchedules();
                     showNotification('Schedule removed', 'info');
+                    
+                    // Show nudge when schedule ends
+                    setTimeout(() => {
+                        showSmartNudge('Your blocking schedule has ended. Ready for your next focus session?');
+                    }, 1000);
                 }
             } catch (error) {
                 showNotification('Failed to remove schedule', 'error');
             }
         };
         
+        // Simulate schedule-based nudges
+        function simulateScheduleNudges() {
+            const scheduleNudges = [
+                'Your deep work schedule starts in 5 minutes. Prepare your workspace!',
+                'Focus time is ending soon. Wrap up your current task.',
+                'Break time! Step away from your screen for a few minutes.',
+                'Your scheduled blocking session has begun. Stay focused!'
+            ];
+            
+            // Show random schedule nudges every 2 minutes for demo
+            setInterval(() => {
+                if (Math.random() < 0.3) { // 30% chance every 2 minutes
+                    const randomNudge = scheduleNudges[Math.floor(Math.random() * scheduleNudges.length)];
+                    showSmartNudge(randomNudge);
+                }
+            }, 2 * 60 * 1000); // Every 2 minutes
+        }
+        
         loadSchedules();
+        simulateScheduleNudges();
     }
 
     // Insights Dashboard Implementation
@@ -441,10 +582,14 @@ document.addEventListener('DOMContentLoaded', function() {
         loadInsights();
     }
 
-    // Nudges System Implementation
+    // Enhanced Smart Nudges System Implementation
     function initializeNudgesSystem() {
         const nudgesListEl = document.getElementById('nudges-list');
         const generateNudgeBtn = document.getElementById('generate-nudge');
+        const nudgePopup = document.getElementById('nudge-popup');
+        const nudgePopupMessage = document.getElementById('nudge-popup-message');
+        const nudgePopupDismiss = document.getElementById('nudge-popup-dismiss');
+        const nudgePopupSnooze = document.getElementById('nudge-popup-snooze');
         
         const nudgeMessages = [
             'Time for a 5-minute break to recharge your focus!',
@@ -452,7 +597,10 @@ document.addEventListener('DOMContentLoaded', function() {
             'Reminder: Stay hydrated and maintain good posture.',
             'Great focus streak! Keep up the momentum.',
             'Time to review your blocked sites list for optimization.',
-            'Consider taking a short walk to boost creativity.'
+            'Consider taking a short walk to boost creativity.',
+            'Your blocking schedule has ended. Ready for your next focus session?',
+            'Productive session complete! Your focus score is improving.',
+            'Consider adding more sites to your block list based on recent distractions.'
         ];
         
         async function loadNudges() {
@@ -476,10 +624,42 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Global function to show smart nudge popup
+        window.showSmartNudge = function(message, type = 'general') {
+            nudgePopupMessage.textContent = message;
+            nudgePopup.classList.remove('hidden');
+            
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+                if (!nudgePopup.classList.contains('hidden')) {
+                    nudgePopup.classList.add('hidden');
+                }
+            }, 10000);
+            
+            feather.replace();
+        };
+        
+        // Nudge popup event handlers
+        nudgePopupDismiss.addEventListener('click', function() {
+            nudgePopup.classList.add('hidden');
+        });
+        
+        nudgePopupSnooze.addEventListener('click', function() {
+            nudgePopup.classList.add('hidden');
+            // Show again in 5 minutes
+            setTimeout(() => {
+                showSmartNudge(nudgePopupMessage.textContent);
+            }, 5 * 60 * 1000);
+            showNotification('Nudge snoozed for 5 minutes', 'info');
+        });
+        
         generateNudgeBtn.addEventListener('click', function() {
             const randomMessage = nudgeMessages[Math.floor(Math.random() * nudgeMessages.length)];
             
-            // Add nudge to UI immediately for demo
+            // Show popup instead of adding to list
+            showSmartNudge(randomMessage);
+            
+            // Also add to the nudges list for reference
             const nudgeHtml = `
                 <div class="bg-dark-500 px-3 py-2 rounded flex justify-between items-start animate-pulse">
                     <div class="flex-1">
@@ -497,8 +677,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 nudgesListEl.insertAdjacentHTML('afterbegin', nudgeHtml);
             }
-            
-            showNotification('Smart nudge generated based on your activity', 'info');
         });
         
         window.markNudgeRead = async function(id) {
