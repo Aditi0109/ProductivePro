@@ -19,6 +19,12 @@ const openai = new OpenAI({
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Google OAuth client
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'demo-client-id';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -57,9 +63,9 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('.'));
 
-// Configure multer for PDF uploads
+// Configure multer for PDF uploads with absolute path
 const upload = multer({
-  dest: 'uploads/',
+  dest: uploadsDir,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
       cb(null, true);
@@ -626,10 +632,20 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'No PDF file uploaded' });
     }
 
-    const pdfPath = req.file.path;
+    const pdfPath = path.resolve(req.file.path);
+    console.log('Processing PDF at path:', pdfPath);
+    
+    // Check if file exists
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(500).json({ 
+        success: false, 
+        error: `PDF file not found at path: ${pdfPath}` 
+      });
+    }
     
     // Extract text from PDF using Python script
-    const pythonProcess = spawn('python3', ['server/pdf_processor.py', pdfPath]);
+    const pythonScriptPath = path.join(__dirname, 'pdf_processor.py');
+    const pythonProcess = spawn('python3', [pythonScriptPath, pdfPath]);
     
     let textContent = '';
     let errorContent = '';
@@ -644,9 +660,13 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
     
     pythonProcess.on('close', (code) => {
       // Clean up uploaded file
-      fs.unlink(pdfPath, () => {});
+      fs.unlink(pdfPath, (unlinkErr) => {
+        if (unlinkErr) console.log('Warning: Could not delete uploaded file:', unlinkErr.message);
+      });
       
       if (code !== 0) {
+        console.log('Python process failed with code:', code);
+        console.log('Error output:', errorContent);
         return res.status(500).json({ 
           success: false, 
           error: 'PDF processing failed: ' + errorContent 
@@ -665,14 +685,25 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
           res.status(500).json(result);
         }
       } catch (parseError) {
+        console.log('Parse error:', parseError.message);
+        console.log('Raw output:', textContent);
         res.status(500).json({ 
           success: false, 
-          error: 'Failed to parse PDF extraction result' 
+          error: 'Failed to parse PDF extraction result: ' + parseError.message 
         });
       }
     });
     
+    pythonProcess.on('error', (spawnError) => {
+      console.log('Python spawn error:', spawnError.message);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to start PDF processing: ' + spawnError.message 
+      });
+    });
+    
   } catch (error) {
+    console.log('Upload error:', error.message);
     res.status(500).json({ 
       success: false, 
       error: 'Server error: ' + error.message 
@@ -824,6 +855,64 @@ Return the response in the following JSON format:
       error: 'Failed to generate flashcards: ' + error.message
     });
   }
+});
+
+// Task Management API Routes
+app.get('/api/tasks', (req, res) => {
+  const activeTasks = tasks.filter(task => task.isActive);
+  res.json(activeTasks);
+});
+
+app.post('/api/tasks', (req, res) => {
+  const { title, timeSlot, description, priority } = req.body;
+  
+  if (!title) {
+    return res.status(400).json({ error: 'Task title is required' });
+  }
+  
+  const newTask = {
+    id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
+    title,
+    timeSlot: timeSlot || '',
+    description: description || '',
+    priority: priority || 'medium',
+    completed: false,
+    isActive: true,
+    createdAt: new Date()
+  };
+  
+  tasks.push(newTask);
+  res.json(newTask);
+});
+
+app.put('/api/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const { completed, title, timeSlot, description, priority } = req.body;
+  
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) {
+    return res.status(404).json({ error: 'Task not found' });
+  }
+  
+  if (completed !== undefined) task.completed = completed;
+  if (title !== undefined) task.title = title;
+  if (timeSlot !== undefined) task.timeSlot = timeSlot;
+  if (description !== undefined) task.description = description;
+  if (priority !== undefined) task.priority = priority;
+  
+  res.json(task);
+});
+
+app.delete('/api/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+  
+  if (taskIndex === -1) {
+    return res.status(404).json({ error: 'Task not found' });
+  }
+  
+  tasks[taskIndex].isActive = false;
+  res.json({ success: true });
 });
 
 // Configuration endpoint for frontend
