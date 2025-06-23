@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavigation();
     initializePomodoroTimer();
     initializeFlowBeats();
+    initializeTaskPlanner();
     initializeInsightsDashboard();
     initializeFocusFuel();
     initializeSnapStudy();
@@ -391,29 +392,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 isPlaying = false;
                 showNotification('Music paused', 'info');
             } else {
-                // Set the stream URL and play
-                lofiAudio.src = 'https://lofi.cafe/api/stream';
-                lofiAudio.play().then(() => {
-                    playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
-                    musicStatus.textContent = '🎵';
-                    isPlaying = true;
-                    showNotification('Playing lofi music', 'success');
-                }).catch(error => {
-                    console.error('Audio play failed:', error);
-                    showNotification('Failed to play music - trying alternative method', 'warning');
-                    // Fallback: create new audio element
-                    const fallbackAudio = new Audio('https://lofi.cafe/api/stream');
-                    fallbackAudio.volume = lofiAudio.volume;
-                    fallbackAudio.crossOrigin = "anonymous";
-                    fallbackAudio.play().then(() => {
-                        isPlaying = true;
+                // Ensure audio is properly initialized with user interaction
+                if (!lofiAudio.src || lofiAudio.src === '') {
+                    lofiAudio.src = 'https://lofi.cafe/api/stream';
+                    lofiAudio.load(); // Load the stream
+                }
+                
+                // Request play with user gesture
+                const playPromise = lofiAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
                         playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
                         musicStatus.textContent = '🎵';
-                        showNotification('Music started', 'success');
-                    }).catch(err => {
-                        showNotification('Music playback requires user interaction', 'info');
+                        isPlaying = true;
+                        showNotification('Playing lofi music', 'success');
+                    }).catch(error => {
+                        console.error('Audio play failed:', error);
+                        
+                        // Try with a direct user-initiated audio element
+                        if (!window.globalAudio) {
+                            window.globalAudio = new Audio();
+                            window.globalAudio.crossOrigin = "anonymous";
+                            window.globalAudio.volume = lofiAudio.volume;
+                        }
+                        
+                        window.globalAudio.src = 'https://lofi.cafe/api/stream';
+                        window.globalAudio.play().then(() => {
+                            playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
+                            musicStatus.textContent = '🎵';
+                            isPlaying = true;
+                            showNotification('Music started', 'success');
+                            
+                            // Update volume control to work with global audio
+                            volumeSlider.addEventListener('input', () => {
+                                window.globalAudio.volume = volumeSlider.value / 100;
+                                volumeDisplay.textContent = volumeSlider.value + '%';
+                            });
+                        }).catch(err => {
+                            showNotification('Click play button to start music (browser requires user interaction)', 'info');
+                        });
                     });
-                });
+                }
             }
             
             // Re-render feather icons
@@ -460,7 +479,123 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(loadCurrentTrack, 30000); // Every 30 seconds
     }
 
-    // Whitelist Mode Implementation
+    // TaskPlanner Implementation
+    function initializeTaskPlanner() {
+        const taskTitleInput = document.getElementById('task-title');
+        const taskTimeSlotInput = document.getElementById('task-time-slot');
+        const taskDescriptionInput = document.getElementById('task-description');
+        const taskPrioritySelect = document.getElementById('task-priority');
+        const addTaskBtn = document.getElementById('add-task');
+        const tasksList = document.getElementById('tasks-list');
+        
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
+                
+                tasksList.innerHTML = tasks.map(task => {
+                    const priorityColors = {
+                        low: 'bg-blue-500',
+                        medium: 'bg-yellow-500',
+                        high: 'bg-red-500'
+                    };
+                    
+                    return `
+                        <div class="flex items-center justify-between bg-dark-500 px-3 py-3 rounded ${task.completed ? 'opacity-60' : ''}">
+                            <div class="flex items-center space-x-3 flex-1">
+                                <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                                       onchange="toggleTaskCompletion(${task.id}, this.checked)"
+                                       class="w-4 h-4 text-accent-600 bg-dark-400 border-gray-300 rounded focus:ring-accent-500">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="text-white text-sm font-medium ${task.completed ? 'line-through' : ''}">${task.title}</span>
+                                        <span class="w-2 h-2 ${priorityColors[task.priority]} rounded-full"></span>
+                                        <span class="text-xs text-gray-400 capitalize">${task.priority}</span>
+                                    </div>
+                                    ${task.description ? `<div class="text-gray-400 text-xs mb-1">${task.description}</div>` : ''}
+                                    ${task.timeSlot ? `<div class="text-purple-400 text-xs">⏰ ${task.timeSlot}</div>` : ''}
+                                </div>
+                            </div>
+                            <button onclick="deleteTask(${task.id})" class="text-red-400 hover:text-red-300 text-xs ml-2">
+                                Delete
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                showNotification('Failed to load tasks', 'error');
+            }
+        }
+        
+        addTaskBtn.addEventListener('click', async function() {
+            const title = taskTitleInput.value.trim();
+            const timeSlot = taskTimeSlotInput.value.trim();
+            const description = taskDescriptionInput.value.trim();
+            const priority = taskPrioritySelect.value;
+            
+            if (!title) {
+                showNotification('Please enter a task title', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, timeSlot, description, priority })
+                });
+                
+                if (response.ok) {
+                    taskTitleInput.value = '';
+                    taskTimeSlotInput.value = '';
+                    taskDescriptionInput.value = '';
+                    taskPrioritySelect.value = 'medium';
+                    loadTasks();
+                    showNotification(`Task "${title}" added successfully`, 'success');
+                }
+            } catch (error) {
+                showNotification('Failed to add task', 'error');
+            }
+        });
+        
+        taskTitleInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTaskBtn.click();
+            }
+        });
+        
+        // Global functions for task actions
+        window.toggleTaskCompletion = async function(id, completed) {
+            try {
+                const response = await fetch(`/api/tasks/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed })
+                });
+                
+                if (response.ok) {
+                    loadTasks();
+                    showNotification(completed ? 'Task completed!' : 'Task marked as incomplete', 'info');
+                }
+            } catch (error) {
+                showNotification('Failed to update task', 'error');
+            }
+        };
+        
+        window.deleteTask = async function(id) {
+            try {
+                const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadTasks();
+                    showNotification('Task deleted', 'info');
+                }
+            } catch (error) {
+                showNotification('Failed to delete task', 'error');
+            }
+        };
+        
+        loadTasks();
+    }
 
 
 

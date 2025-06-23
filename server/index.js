@@ -114,6 +114,10 @@ let schedules = [
   { id: 2, name: 'Focus Afternoon', dayOfWeek: 2, startTime: '14:00', endTime: '17:00', isActive: true, blockingType: 'whitelist' }
 ];
 let pomodoroSessions = [];
+let tasks = [
+  { id: 1, title: 'Review project proposal', description: 'Go through the quarterly project proposal document', timeSlot: '09:00-10:00', priority: 'high', completed: false, isActive: true, createdAt: new Date() },
+  { id: 2, title: 'Team standup meeting', description: 'Daily team synchronization', timeSlot: '10:30-11:00', priority: 'medium', completed: false, isActive: true, createdAt: new Date() }
+];
 let nudges = [
   { id: 1, type: 'focus_reminder', message: 'Time for a focused work session!', isRead: false, createdAt: new Date() },
   { id: 2, type: 'break_reminder', message: 'Take a 5-minute break to recharge.', isRead: false, createdAt: new Date() }
@@ -468,6 +472,81 @@ app.get('/api/flowbeats/stream', (req, res) => {
     streamUrl: 'https://lofi.cafe/api/stream',
     message: 'Direct stream URL for audio player'
   });
+});
+
+// TaskPlanner Routes
+app.get('/api/tasks', (req, res) => {
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userTasks = user ? (user.tasks || tasks) : tasks;
+  
+  res.json(userTasks.filter(task => task.isActive));
+});
+
+app.post('/api/tasks', (req, res) => {
+  const { title, description, timeSlot, priority } = req.body;
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  
+  if (!title) {
+    return res.status(400).json({ error: 'Task title is required' });
+  }
+  
+  const newTask = {
+    id: Date.now(),
+    title,
+    description: description || '',
+    timeSlot: timeSlot || '',
+    priority: priority || 'medium',
+    completed: false,
+    isActive: true,
+    createdAt: new Date()
+  };
+  
+  if (user) {
+    if (!user.tasks) user.tasks = [];
+    user.tasks.push(newTask);
+  } else {
+    tasks.push(newTask);
+  }
+  
+  res.json(newTask);
+});
+
+app.put('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { completed, title, description, timeSlot, priority } = req.body;
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userTasks = user ? (user.tasks || tasks) : tasks;
+  
+  const task = userTasks.find(task => task.id === id);
+  if (task) {
+    if (completed !== undefined) task.completed = completed;
+    if (title !== undefined) task.title = title;
+    if (description !== undefined) task.description = description;
+    if (timeSlot !== undefined) task.timeSlot = timeSlot;
+    if (priority !== undefined) task.priority = priority;
+    
+    res.json(task);
+  } else {
+    res.status(404).json({ error: 'Task not found' });
+  }
+});
+
+app.delete('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const sessionId = req.cookies.sessionId;
+  const user = sessionId ? userSessions.get(sessionId) : null;
+  const userTasks = user ? (user.tasks || tasks) : tasks;
+  
+  const task = userTasks.find(task => task.id === id);
+  if (task) {
+    task.isActive = false;
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Task not found' });
+  }
 });
 
 // Usage Insights Routes

@@ -273,7 +273,49 @@
                     </div>
                 </div>
 
-                <!-- Feature 5: Interactive Usage Insights -->
+                <!-- Feature 3: TaskPlanner -->
+                <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
+                    <div class="flex items-start space-x-4 mb-6">
+                        <div class="flex-shrink-0 w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                            <i data-feather="check-square" class="w-6 h-6 text-green-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-white mb-3">TaskPlanner</h3>
+                            <p class="text-gray-300 leading-relaxed mb-4">
+                                Organize your tasks with time slots and priority levels for better productivity.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- TaskPlanner Interface -->
+                    <div id="task-planner" class="bg-dark-600 rounded-lg p-6">
+                        <div class="mb-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                                <input type="text" id="task-title" placeholder="Task title" 
+                                       class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                                <input type="text" id="task-time-slot" placeholder="Time slot (e.g., 09:00-10:00)" 
+                                       class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                                <textarea id="task-description" placeholder="Task description (optional)" 
+                                          class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm h-20"></textarea>
+                                <select id="task-priority" class="bg-dark-500 text-white px-3 py-2 rounded border border-dark-400 focus:border-accent-500 focus:outline-none text-sm">
+                                    <option value="low">Low Priority</option>
+                                    <option value="medium" selected>Medium Priority</option>
+                                    <option value="high">High Priority</option>
+                                </select>
+                            </div>
+                            <button id="add-task" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+                                Add Task
+                            </button>
+                        </div>
+                        <div id="tasks-list" class="space-y-2 max-h-64 overflow-y-auto">
+                            <!-- Tasks will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 4: Interactive Usage Insights -->
                 <div class="feature-card bg-dark-700 rounded-xl p-8 border border-dark-600 hover:border-accent-500/50 transition-all duration-300">
                     <div class="flex items-start space-x-4 mb-6">
                         <div class="flex-shrink-0 w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
