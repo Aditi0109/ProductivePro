@@ -8,6 +8,7 @@ const multer = require('multer');
 const { spawn } = require('child_process');
 const OpenAI = require('openai');
 const fs = require('fs');
+const https = require('https');
 require('dotenv').config();
 
 // Initialize OpenAI
@@ -24,7 +25,32 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Middleware
 app.use(cors({
-  origin: true,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:5000',
+      'http://127.0.0.1:5000',
+      /https:\/\/.*\.replit\.app$/,
+      /https:\/\/.*\.replit\.dev$/
+    ];
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return pattern === origin;
+      }
+      return pattern.test(origin);
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for development
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -341,91 +367,107 @@ app.get('/api/pomodoro/history', (req, res) => {
   res.json(pomodoroSessions.slice(-10)); // Last 10 sessions
 });
 
-// Site Blocking Routes
-app.get('/api/blocked-sites', (req, res) => {
-  res.json(blockedSites.filter(site => site.isActive));
-});
+// FlowBeats Music API Routes
+app.get('/api/flowbeats/current', async (req, res) => {
+  try {
+    // Make HTTPS request to lofi.cafe API
+    const options = {
+      hostname: 'lofi.cafe',
+      path: '/api/stats',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'ProductivePro/1.0'
+      }
+    };
 
-app.post('/api/blocked-sites', (req, res) => {
-  const { url, category } = req.body;
-  const newSite = {
-    id: Date.now(),
-    url,
-    category: category || 'other',
-    isActive: true
-  };
-  blockedSites.push(newSite);
-  res.json(newSite);
-});
+    const apiRequest = https.request(options, (apiRes) => {
+      let data = '';
+      
+      apiRes.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      apiRes.on('end', () => {
+        try {
+          const apiData = JSON.parse(data);
+          res.json({
+            success: true,
+            currentTrack: {
+              title: apiData.currently_playing?.title || 'Lofi Hip Hop',
+              artist: apiData.currently_playing?.artist || 'lofi.cafe',
+              isPlaying: true
+            },
+            listeners: apiData.listeners || 0,
+            streamUrl: 'https://lofi.cafe/api/stream'
+          });
+        } catch (parseError) {
+          // Fallback response
+          res.json({
+            success: true,
+            currentTrack: {
+              title: 'Lofi Hip Hop Radio',
+              artist: 'lofi.cafe',
+              isPlaying: true
+            },
+            listeners: 0,
+            streamUrl: 'https://lofi.cafe/api/stream'
+          });
+        }
+      });
+    });
 
-app.delete('/api/blocked-sites/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = blockedSites.findIndex(site => site.id === id);
-  if (index !== -1) {
-    blockedSites[index].isActive = false;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Site not found' });
+    apiRequest.on('error', (error) => {
+      console.error('FlowBeats API error:', error);
+      // Fallback response
+      res.json({
+        success: true,
+        currentTrack: {
+          title: 'Lofi Hip Hop Radio',
+          artist: 'lofi.cafe',
+          isPlaying: true
+        },
+        listeners: 0,
+        streamUrl: 'https://lofi.cafe/api/stream'
+      });
+    });
+
+    apiRequest.setTimeout(5000, () => {
+      apiRequest.destroy();
+      // Fallback response for timeout
+      res.json({
+        success: true,
+        currentTrack: {
+          title: 'Lofi Hip Hop Radio',
+          artist: 'lofi.cafe',
+          isPlaying: true
+        },
+        listeners: 0,
+        streamUrl: 'https://lofi.cafe/api/stream'
+      });
+    });
+
+    apiRequest.end();
+  } catch (error) {
+    console.error('FlowBeats API error:', error);
+    res.json({
+      success: true,
+      currentTrack: {
+        title: 'Lofi Hip Hop Radio',
+        artist: 'lofi.cafe',
+        isPlaying: true
+      },
+      listeners: 0,
+      streamUrl: 'https://lofi.cafe/api/stream'
+    });
   }
 });
 
-// Whitelist Routes
-app.get('/api/whitelist-sites', (req, res) => {
-  res.json(whitelistSites.filter(site => site.isActive));
-});
-
-app.post('/api/whitelist-sites', (req, res) => {
-  const { url, category } = req.body;
-  const newSite = {
-    id: Date.now(),
-    url,
-    category: category || 'work',
-    isActive: true
-  };
-  whitelistSites.push(newSite);
-  res.json(newSite);
-});
-
-app.delete('/api/whitelist-sites/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = whitelistSites.findIndex(site => site.id === id);
-  if (index !== -1) {
-    whitelistSites[index].isActive = false;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Site not found' });
-  }
-});
-
-// Schedule Routes
-app.get('/api/schedules', (req, res) => {
-  res.json(schedules.filter(schedule => schedule.isActive));
-});
-
-app.post('/api/schedules', (req, res) => {
-  const { name, dayOfWeek, startTime, endTime, blockingType } = req.body;
-  const newSchedule = {
-    id: Date.now(),
-    name,
-    dayOfWeek,
-    startTime,
-    endTime,
-    blockingType,
-    isActive: true
-  };
-  schedules.push(newSchedule);
-  res.json(newSchedule);
-});
-
-app.delete('/api/schedules/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = schedules.findIndex(schedule => schedule.id === id);
-  if (index !== -1) {
-    schedules[index].isActive = false;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Schedule not found' });
-  }
+app.get('/api/flowbeats/stream', (req, res) => {
+  res.json({
+    success: true,
+    streamUrl: 'https://lofi.cafe/api/stream',
+    message: 'Direct stream URL for audio player'
+  });
 });
 
 // Usage Insights Routes
@@ -463,7 +505,6 @@ app.get('/api/insights', (req, res) => {
     totalProductiveTime: Math.round(userStats.totalProductiveTime), // in minutes
     totalDistractedTime: Math.round(userStats.totalDistractedTime), // in minutes (pause time)
     pomodoroCount: userStats.sessionsCompleted,
-    sitesBlocked: userBlockedSites.filter(s => s.isActive).length,
     focusScore: focusScore,
     timeAway: Math.round(userStats.totalDistractedTime), // time paused
     currentSession: activeSession ? {

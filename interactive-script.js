@@ -6,9 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize all interactive components
     initializeNavigation();
     initializePomodoroTimer();
-    initializeSiteBlocking();
-    initializeWhitelistMode();
-    initializeScheduleManager();
+    initializeFlowBeats();
     initializeInsightsDashboard();
     initializeFocusFuel();
     initializeSnapStudy();
@@ -349,251 +347,123 @@ document.addEventListener('DOMContentLoaded', function() {
         updateButtons();
     }
 
-    // Site Blocking Implementation
-    function initializeSiteBlocking() {
-        const blockSiteInput = document.getElementById('block-site-input');
-        const addBlockedSiteBtn = document.getElementById('add-blocked-site');
-        const blockedSitesList = document.getElementById('blocked-sites-list');
+    // FlowBeats Music Player Implementation
+    function initializeFlowBeats() {
+        const playPauseBtn = document.getElementById('music-play-pause');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeDisplay = document.getElementById('volume-display');
+        const trackTitle = document.getElementById('current-track-title');
+        const trackArtist = document.getElementById('current-track-artist');
+        const listenerCount = document.getElementById('listener-count');
+        const musicStatus = document.getElementById('music-status');
+        const lofiAudio = document.getElementById('lofi-audio');
         
-        async function loadBlockedSites() {
+        let isPlaying = false;
+        
+        // Initialize audio element
+        lofiAudio.volume = 0.5;
+        lofiAudio.crossOrigin = "anonymous";
+        
+        // Load current track info
+        async function loadCurrentTrack() {
             try {
-                const response = await fetch('/api/blocked-sites');
-                const sites = await response.json();
+                const response = await fetch('/api/flowbeats/current');
+                const data = await response.json();
                 
-                blockedSitesList.innerHTML = sites.map(site => `
-                    <div class="flex justify-between items-center bg-dark-500 px-3 py-2 rounded">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                            <span class="text-white text-sm">${site.url}</span>
-                            <span class="text-gray-400 text-xs">${site.category}</span>
-                        </div>
-                        <button onclick="removeBlockedSite(${site.id})" class="text-red-400 hover:text-red-300 text-xs">
-                            Remove
-                        </button>
-                    </div>
-                `).join('');
+                if (data.success) {
+                    trackTitle.textContent = data.currentTrack.title;
+                    trackArtist.textContent = data.currentTrack.artist;
+                    listenerCount.textContent = `🎧 ${data.listeners} listeners`;
+                }
             } catch (error) {
-                showNotification('Failed to load blocked sites', 'error');
+                trackTitle.textContent = 'Lofi Hip Hop Radio';
+                trackArtist.textContent = 'lofi.cafe';
+                listenerCount.textContent = '🎧 Loading...';
             }
         }
         
-        addBlockedSiteBtn.addEventListener('click', async function() {
-            const url = blockSiteInput.value.trim();
-            if (!url) return;
-            
-            try {
-                const response = await fetch('/api/blocked-sites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, category: 'user_added' })
+        // Play/Pause functionality
+        function togglePlayPause() {
+            if (isPlaying) {
+                lofiAudio.pause();
+                playPauseBtn.innerHTML = '<i data-feather="play" class="w-5 h-5"></i>';
+                musicStatus.textContent = '⏸️';
+                isPlaying = false;
+                showNotification('Music paused', 'info');
+            } else {
+                // Set the stream URL and play
+                lofiAudio.src = 'https://lofi.cafe/api/stream';
+                lofiAudio.play().then(() => {
+                    playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
+                    musicStatus.textContent = '🎵';
+                    isPlaying = true;
+                    showNotification('Playing lofi music', 'success');
+                }).catch(error => {
+                    console.error('Audio play failed:', error);
+                    showNotification('Failed to play music - trying alternative method', 'warning');
+                    // Fallback: create new audio element
+                    const fallbackAudio = new Audio('https://lofi.cafe/api/stream');
+                    fallbackAudio.volume = lofiAudio.volume;
+                    fallbackAudio.crossOrigin = "anonymous";
+                    fallbackAudio.play().then(() => {
+                        isPlaying = true;
+                        playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
+                        musicStatus.textContent = '🎵';
+                        showNotification('Music started', 'success');
+                    }).catch(err => {
+                        showNotification('Music playback requires user interaction', 'info');
+                    });
                 });
-                
-                if (response.ok) {
-                    blockSiteInput.value = '';
-                    loadBlockedSites();
-                    refreshInsights();
-                    showNotification(`${url} has been blocked`, 'success');
-                }
-            } catch (error) {
-                showNotification('Failed to block site', 'error');
+            }
+            
+            // Re-render feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
+        
+        // Volume control
+        function updateVolume() {
+            const volume = volumeSlider.value / 100;
+            lofiAudio.volume = volume;
+            volumeDisplay.textContent = volumeSlider.value + '%';
+        }
+        
+        // Event listeners
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        volumeSlider.addEventListener('input', updateVolume);
+        
+        // Handle audio events
+        lofiAudio.addEventListener('ended', () => {
+            // Lofi stream shouldn't end, but if it does, restart
+            if (isPlaying) {
+                setTimeout(() => {
+                    lofiAudio.play();
+                }, 1000);
             }
         });
         
-        blockSiteInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addBlockedSiteBtn.click();
+        lofiAudio.addEventListener('error', () => {
+            if (isPlaying) {
+                showNotification('Audio stream interrupted, retrying...', 'warning');
+                setTimeout(() => {
+                    lofiAudio.src = 'https://lofi.cafe/api/stream';
+                    lofiAudio.play();
+                }, 2000);
             }
         });
         
-        // Global function for remove buttons
-        window.removeBlockedSite = async function(id) {
-            try {
-                const response = await fetch(`/api/blocked-sites/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    loadBlockedSites();
-                    refreshInsights();
-                    showNotification('Site unblocked', 'info');
-                }
-            } catch (error) {
-                showNotification('Failed to unblock site', 'error');
-            }
-        };
+        // Load track info on initialization
+        loadCurrentTrack();
         
-        loadBlockedSites();
+        // Refresh track info periodically
+        setInterval(loadCurrentTrack, 30000); // Every 30 seconds
     }
 
     // Whitelist Mode Implementation
-    function initializeWhitelistMode() {
-        const whitelistSiteInput = document.getElementById('whitelist-site-input');
-        const addWhitelistSiteBtn = document.getElementById('add-whitelist-site');
-        const whitelistSitesList = document.getElementById('whitelist-sites-list');
-        
-        async function loadWhitelistSites() {
-            try {
-                const response = await fetch('/api/whitelist-sites');
-                const sites = await response.json();
-                
-                whitelistSitesList.innerHTML = sites.map(site => `
-                    <div class="flex justify-between items-center bg-dark-500 px-3 py-2 rounded">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span class="text-white text-sm">${site.url}</span>
-                            <span class="text-gray-400 text-xs">${site.category}</span>
-                        </div>
-                        <button onclick="removeWhitelistSite(${site.id})" class="text-green-400 hover:text-green-300 text-xs">
-                            Remove
-                        </button>
-                    </div>
-                `).join('');
-            } catch (error) {
-                showNotification('Failed to load whitelist sites', 'error');
-            }
-        }
-        
-        addWhitelistSiteBtn.addEventListener('click', async function() {
-            const url = whitelistSiteInput.value.trim();
-            if (!url) return;
-            
-            try {
-                const response = await fetch('/api/whitelist-sites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, category: 'user_added' })
-                });
-                
-                if (response.ok) {
-                    whitelistSiteInput.value = '';
-                    loadWhitelistSites();
-                    showNotification(`${url} has been whitelisted`, 'success');
-                }
-            } catch (error) {
-                showNotification('Failed to whitelist site', 'error');
-            }
-        });
-        
-        whitelistSiteInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addWhitelistSiteBtn.click();
-            }
-        });
-        
-        window.removeWhitelistSite = async function(id) {
-            try {
-                const response = await fetch(`/api/whitelist-sites/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    loadWhitelistSites();
-                    showNotification('Site removed from whitelist', 'info');
-                }
-            } catch (error) {
-                showNotification('Failed to remove from whitelist', 'error');
-            }
-        };
-        
-        loadWhitelistSites();
-    }
 
-    // Schedule Manager Implementation
-    function initializeScheduleManager() {
-        const scheduleNameInput = document.getElementById('schedule-name');
-        const scheduleDaySelect = document.getElementById('schedule-day');
-        const scheduleStartInput = document.getElementById('schedule-start');
-        const scheduleEndInput = document.getElementById('schedule-end');
-        const addScheduleBtn = document.getElementById('add-schedule');
-        const schedulesList = document.getElementById('schedules-list');
-        
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
-        async function loadSchedules() {
-            try {
-                const response = await fetch('/api/schedules');
-                const schedules = await response.json();
-                
-                schedulesList.innerHTML = schedules.map(schedule => `
-                    <div class="flex justify-between items-center bg-dark-500 px-3 py-2 rounded">
-                        <div>
-                            <div class="text-white text-sm font-medium">${schedule.name}</div>
-                            <div class="text-gray-400 text-xs">
-                                ${dayNames[schedule.dayOfWeek]} ${schedule.startTime} - ${schedule.endTime}
-                            </div>
-                        </div>
-                        <button onclick="removeSchedule(${schedule.id})" class="text-orange-400 hover:text-orange-300 text-xs">
-                            Remove
-                        </button>
-                    </div>
-                `).join('');
-            } catch (error) {
-                showNotification('Failed to load schedules', 'error');
-            }
-        }
-        
-        addScheduleBtn.addEventListener('click', async function() {
-            const name = scheduleNameInput.value.trim();
-            const dayOfWeek = parseInt(scheduleDaySelect.value);
-            const startTime = scheduleStartInput.value;
-            const endTime = scheduleEndInput.value;
-            
-            if (!name || !startTime || !endTime) {
-                showNotification('Please fill in all fields', 'warning');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/schedules', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, dayOfWeek, startTime, endTime, blockingType: 'blacklist' })
-                });
-                
-                if (response.ok) {
-                    scheduleNameInput.value = '';
-                    scheduleStartInput.value = '';
-                    scheduleEndInput.value = '';
-                    loadSchedules();
-                    showNotification('Schedule created successfully', 'success');
-                }
-            } catch (error) {
-                showNotification('Failed to create schedule', 'error');
-            }
-        });
-        
-        window.removeSchedule = async function(id) {
-            try {
-                const response = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    loadSchedules();
-                    showNotification('Schedule removed', 'info');
-                    
-                    // Show notification when schedule ends
-                    setTimeout(() => {
-                        showNotification('Your blocking schedule has ended. Ready for your next focus session?', 'info');
-                    }, 1000);
-                }
-            } catch (error) {
-                showNotification('Failed to remove schedule', 'error');
-            }
-        };
-        
-        // Simulate schedule-based notifications
-        function simulateScheduleNudges() {
-            const scheduleNotifications = [
-                'Your deep work schedule starts in 5 minutes. Prepare your workspace!',
-                'Focus time is ending soon. Wrap up your current task.',
-                'Break time! Step away from your screen for a few minutes.',
-                'Your scheduled blocking session has begun. Stay focused!'
-            ];
-            
-            // Show random schedule notifications every 2 minutes for demo
-            setInterval(() => {
-                if (Math.random() < 0.3) { // 30% chance every 2 minutes
-                    const randomNotification = scheduleNotifications[Math.floor(Math.random() * scheduleNotifications.length)];
-                    showNotification(randomNotification, 'info');
-                }
-            }, 2 * 60 * 1000); // Every 2 minutes
-        }
-        
-        loadSchedules();
-        simulateScheduleNudges();
-    }
+
+
 
     // Insights Dashboard Implementation
     function initializeInsightsDashboard() {
