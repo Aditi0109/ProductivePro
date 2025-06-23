@@ -1,67 +1,111 @@
-# Google OAuth Setup Guide
+# 🔐 Google OAuth 2.0 Setup Guide
 
-## Quick Setup Instructions
+Enable Google Sign-In in your web application by configuring OAuth 2.0 credentials in the Google Cloud Console.
 
-To enable Google Sign-In for ProductivePro, you need to configure OAuth 2.0 credentials in Google Cloud Console.
+---
 
-### Step 1: Create Google Cloud Project
+## ✅ Step-by-Step Instructions
+
+### **Step 1: Create a Google Cloud Project**
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Note your project name/ID
+2. Click the project dropdown → **New Project**
+3. Give your project a name and click **Create**
+4. Once created, note your **Project ID**
 
-### Step 2: Enable Google Identity API
-1. In Google Cloud Console, go to "APIs & Services" → "Library"
-2. Search for "Google Identity" or "Google+ API"
-3. Click "Enable" on the Google Identity API
+---
 
-### Step 3: Create OAuth 2.0 Credentials
-1. Go to "APIs & Services" → "Credentials"
-2. Click "Create Credentials" → "OAuth 2.0 Client ID"
-3. If prompted, configure OAuth consent screen first:
-   - Choose "External" user type
-   - Fill in required fields (App name, User support email, Developer email)
-   - Add your domain to authorized domains: `replit.app`
-4. Choose "Web application" as application type
-5. Add "Authorized JavaScript origins":
-6. Add "Authorized redirect URIs":
-7. Click "Create"
+### **Step 2: Enable OAuth APIs**
 
-### Step 4: Configure Environment Variable
-1. Copy the Client ID from the credentials page
-2. In your Replit project, add a secret:
-   - Key: `GOOGLE_CLIENT_ID`
-   - Value: Your copied Client ID (e.g., `123456789-abcdef.apps.googleusercontent.com`)
+1. In the left sidebar, go to **APIs & Services → Library**
+2. Search for and enable:
 
-### Step 5: Test Authentication
-1. Restart your application
-2. Try clicking "Login with Google"
-3. You should see the Google OAuth consent screen
+   * **Google Identity Services API**
+   * (Optionally: Google People API, if you need user profile info)
 
-## Common Issues
+---
 
-### "Access blocked: Authorization Error"
-- Check that your domain is added to authorized JavaScript origins
-- Ensure the Client ID is correctly set in environment variables
-- Verify the OAuth consent screen is configured
+### **Step 3: Configure OAuth Consent Screen**
 
-### "redirect_uri_mismatch"
-- Add your exact domain to authorized redirect URIs
-- Include both with and without trailing slashes
+1. Go to **APIs & Services → OAuth consent screen**
+2. Choose **External** as the user type (for public apps)
+3. Fill in:
 
-### "This app isn't verified"
-- This is normal during development
-- Click "Advanced" → "Go to ProductivePro (unsafe)" to continue
-- For production, submit your app for verification
+   * App Name
+   * User support email
+   * Developer contact email
+4. Add your domain(s) under **Authorized domains**
+5. Save and continue through the scopes and test users setup
+6. Click **Publish App** (optional for development; required for production)
 
-## Environment Variables Needed
+---
 
+### **Step 4: Create OAuth 2.0 Credentials**
+
+1. Go to **APIs & Services → Credentials**
+2. Click **Create Credentials → OAuth 2.0 Client ID**
+3. Choose **Web application** as the application type
+4. Set a name (e.g., `ProductivityPro Web Client`)
+5. Add:
+
+   * **Authorized JavaScript origins** (e.g., `https://yourdomain.com`)
+   * **Authorized redirect URIs** (e.g., `https://yourdomain.com/auth/google/callback`)
+6. Click **Create**
+
+> 📌 Note: Use exact URLs (no wildcards). Trailing slashes matter.
+
+---
+
+### **Step 5: Set Up Environment Variables**
+
+Copy the generated **Client ID** and optionally **Client Secret**, then add them to your server or environment:
+
+```env
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
 ```
-GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
-OPENAI_API_KEY=your-openai-api-key-here
-```
 
-## Test URLs
-- Development: `https://workspace.replit.app`
-- Your project URL: Check your Replit project's URL and use that
+---
 
-The application will automatically detect if Google OAuth is configured and show appropriate messaging to users.
+### **Step 6: Implement Google Login in Your App**
+
+Depending on your backend framework, use libraries such as:
+
+* **Node.js (Express)**: `passport-google-oauth20`, `google-auth-library`
+* **Python (Flask/Django)**: `Authlib`, `Flask-Dance`
+* **Frontend (JS/React)**: Google Identity SDK (script-based)
+
+Basic OAuth 2.0 flow:
+
+* Frontend redirects to Google OAuth URL
+* User logs in → Google redirects back to your **redirect URI**
+* Your backend exchanges the code for tokens
+* Use the ID token or access token to fetch user info
+
+---
+
+## 🔪 Testing
+
+1. Start your application
+2. Navigate to your login page
+3. Click **Login with Google**
+4. You should see the OAuth consent screen → approve access
+5. Your app should receive user info or token
+
+---
+
+## ⚠️ Common Issues
+
+### ❌ `redirect_uri_mismatch`
+
+* Your redirect URI must **exactly** match what you added in Google Cloud Console
+
+### ❌ `Access blocked: Authorization Error`
+
+* Domain not listed in **Authorized JavaScript origins**
+* Using wrong Client ID or redirect URI
+
+### ⚠️ `This app isn’t verified`
+
+* OK in development. Click **Advanced → Go to app (unsafe)** to proceed
+* For production, submit for verification via Google Cloud Console
