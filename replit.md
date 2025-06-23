@@ -151,6 +151,12 @@ Changelog:
   * Created fallback text-analysis system for when AI service unavailable
   * Fixed undefined function errors and improved error handling
   * Added proper file upload handling with multer middleware
+- June 23, 2025. Migration from Replit Agent to standard Replit environment
+  * Successfully migrated all dependencies and configurations
+  * Replaced FlowBeats lofi cafe integration with client-side white noise generator
+  * Added multiple white noise types: white, pink, rain, ocean, forest sounds
+  * Configured OpenAI API key for AI-powered flashcard generation
+  * Removed external API dependencies for improved reliability and security
 ```
 
 ## User Preferences

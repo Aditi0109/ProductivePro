@@ -377,106 +377,13 @@ app.get('/api/pomodoro/history', (req, res) => {
   res.json(pomodoroSessions.slice(-10)); // Last 10 sessions
 });
 
-// FlowBeats Music API Routes
-app.get('/api/flowbeats/current', async (req, res) => {
-  try {
-    // Make HTTPS request to lofi.cafe API
-    const options = {
-      hostname: 'lofi.cafe',
-      path: '/api/stats',
-      method: 'GET',
-      headers: {
-        'User-Agent': 'ProductivePro/1.0'
-      }
-    };
-
-    const apiRequest = https.request(options, (apiRes) => {
-      let data = '';
-      
-      apiRes.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-      apiRes.on('end', () => {
-        try {
-          const apiData = JSON.parse(data);
-          res.json({
-            success: true,
-            currentTrack: {
-              title: apiData.currently_playing?.title || 'Lofi Hip Hop',
-              artist: apiData.currently_playing?.artist || 'lofi.cafe',
-              isPlaying: true
-            },
-            listeners: apiData.listeners || 0,
-            streamUrl: 'https://lofi.cafe/api/stream'
-          });
-        } catch (parseError) {
-          // Fallback response
-          res.json({
-            success: true,
-            currentTrack: {
-              title: 'Lofi Hip Hop Radio',
-              artist: 'lofi.cafe',
-              isPlaying: true
-            },
-            listeners: 0,
-            streamUrl: 'https://lofi.cafe/api/stream'
-          });
-        }
-      });
-    });
-
-    apiRequest.on('error', (error) => {
-      console.error('FlowBeats API error:', error);
-      // Fallback response
-      res.json({
-        success: true,
-        currentTrack: {
-          title: 'Lofi Hip Hop Radio',
-          artist: 'lofi.cafe',
-          isPlaying: true
-        },
-        listeners: 0,
-        streamUrl: 'https://lofi.cafe/api/stream'
-      });
-    });
-
-    apiRequest.setTimeout(5000, () => {
-      apiRequest.destroy();
-      // Fallback response for timeout
-      res.json({
-        success: true,
-        currentTrack: {
-          title: 'Lofi Hip Hop Radio',
-          artist: 'lofi.cafe',
-          isPlaying: true
-        },
-        listeners: 0,
-        streamUrl: 'https://lofi.cafe/api/stream'
-      });
-    });
-
-    apiRequest.end();
-  } catch (error) {
-    console.error('FlowBeats API error:', error);
-    res.json({
-      success: true,
-      currentTrack: {
-        title: 'Lofi Hip Hop Radio',
-        artist: 'lofi.cafe',
-        isPlaying: true
-      },
-      listeners: 0,
-      streamUrl: 'https://lofi.cafe/api/stream'
-    });
-  }
-});
-
-app.get('/api/flowbeats/stream', (req, res) => {
+// White Noise API Routes (FlowBeats replaced with client-side generation)
+app.get('/api/flowbeats/current', (req, res) => {
+  // Return basic info since white noise is generated client-side
   res.json({
     success: true,
-    streamUrl: 'https://lofi.cafe/api/stream',
-    message: 'Direct stream URL for audio player'
+    message: 'White noise generated client-side',
+    availableTypes: ['white', 'pink', 'rain', 'ocean', 'forest']
   });
 });
 

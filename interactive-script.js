@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateButtons();
     }
 
-    // FlowBeats Music Player Implementation
+    // FlowBeats White Noise Player Implementation
     function initializeFlowBeats() {
         const playPauseBtn = document.getElementById('music-play-pause');
         const volumeSlider = document.getElementById('volume-slider');
@@ -360,78 +360,122 @@ document.addEventListener('DOMContentLoaded', function() {
         const lofiAudio = document.getElementById('lofi-audio');
         
         let isPlaying = false;
+        let currentWhiteNoiseType = 'white';
+        
+        // White noise types and their sources
+        const whiteNoiseSources = {
+            rain: 'https://www.soundjay.com/misc/sounds/rain-01.wav',
+            ocean: 'https://www.soundjay.com/misc/sounds/wave-1.wav',
+            forest: 'https://www.soundjay.com/misc/sounds/forest-1.wav',
+            white: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSB+zO/PeioFInTC7+OUUAsMVrPr9pRVFAlXn+PysmaLXAXYzPDJdSgOKXd4wFOOLNQ0RNhObQOcNPBzlvMHNdXVlLOVBgEgCOQJnBOlBLQBtgAAAA==',
+            pink: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSB+zO/PeioFInTC7+OUUAsMVrPr9pRVFAlXn+PysmaLXAXYzPDJdSgOKXd4wFOOLNQ0RNhObQOcNPBzlvMHNdXVlLOVBgEgCOQJnBOlBLQBtgAAAA=='
+        };
         
         // Initialize audio element
         lofiAudio.volume = 0.5;
-        lofiAudio.crossOrigin = "anonymous";
+        lofiAudio.loop = true;
         
-        // Load current track info
-        async function loadCurrentTrack() {
-            try {
-                const response = await fetch('/api/flowbeats/current');
-                const data = await response.json();
-                
-                if (data.success) {
-                    trackTitle.textContent = data.currentTrack.title;
-                    trackArtist.textContent = data.currentTrack.artist;
-                    listenerCount.textContent = `🎧 ${data.listeners} listeners`;
-                }
-            } catch (error) {
-                trackTitle.textContent = 'Lofi Hip Hop Radio';
-                trackArtist.textContent = 'lofi.cafe';
-                listenerCount.textContent = '🎧 Loading...';
+        // Generate white noise programmatically for better quality
+        function generateWhiteNoise() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const bufferSize = 2 * audioContext.sampleRate;
+            const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
             }
+            
+            const whiteNoise = audioContext.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            whiteNoise.loop = true;
+            
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0.3;
+            
+            whiteNoise.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            return { whiteNoise, gainNode, audioContext };
+        }
+        
+        let whiteNoiseGenerator = null;
+        
+        // Load current track info (now shows white noise type)
+        function loadCurrentTrack() {
+            const noiseTypes = {
+                rain: { title: 'Rain Sounds', artist: 'Nature Sounds' },
+                ocean: { title: 'Ocean Waves', artist: 'Nature Sounds' },
+                forest: { title: 'Forest Ambience', artist: 'Nature Sounds' },
+                white: { title: 'White Noise', artist: 'Focus Sounds' },
+                pink: { title: 'Pink Noise', artist: 'Focus Sounds' }
+            };
+            
+            const current = noiseTypes[currentWhiteNoiseType];
+            trackTitle.textContent = current.title;
+            trackArtist.textContent = current.artist;
+            listenerCount.textContent = '🎧 White Noise Player';
         }
         
         // Play/Pause functionality
         function togglePlayPause() {
             if (isPlaying) {
+                if (whiteNoiseGenerator) {
+                    whiteNoiseGenerator.whiteNoise.stop();
+                    whiteNoiseGenerator.audioContext.suspend();
+                    whiteNoiseGenerator = null;
+                }
                 lofiAudio.pause();
                 playPauseBtn.innerHTML = '<i data-feather="play" class="w-5 h-5"></i>';
                 musicStatus.textContent = '⏸️';
                 isPlaying = false;
-                showNotification('Music paused', 'info');
+                showNotification('White noise paused', 'info');
             } else {
-                // Ensure audio is properly initialized with user interaction
-                if (!lofiAudio.src || lofiAudio.src === '') {
-                    lofiAudio.src = 'https://lofi.cafe/api/stream';
-                    lofiAudio.load(); // Load the stream
-                }
-                
-                // Request play with user gesture
-                const playPromise = lofiAudio.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
+                // Use programmatic white noise for better quality
+                if (currentWhiteNoiseType === 'white' || currentWhiteNoiseType === 'pink') {
+                    try {
+                        whiteNoiseGenerator = generateWhiteNoise();
+                        whiteNoiseGenerator.whiteNoise.start();
                         playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
                         musicStatus.textContent = '🎵';
                         isPlaying = true;
-                        showNotification('Playing lofi music', 'success');
-                    }).catch(error => {
-                        console.error('Audio play failed:', error);
+                        showNotification(`Playing ${currentWhiteNoiseType} noise`, 'success');
+                    } catch (error) {
+                        console.error('White noise generation failed:', error);
+                        showNotification('Audio not supported in this browser', 'error');
+                    }
+                } else {
+                    // For nature sounds, use a simple tone generator as fallback
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
                         
-                        // Try with a direct user-initiated audio element
-                        if (!window.globalAudio) {
-                            window.globalAudio = new Audio();
-                            window.globalAudio.crossOrigin = "anonymous";
-                            window.globalAudio.volume = lofiAudio.volume;
-                        }
+                        // Different frequencies for different nature sounds
+                        const frequencies = {
+                            rain: 200,
+                            ocean: 100,
+                            forest: 300
+                        };
                         
-                        window.globalAudio.src = 'https://lofi.cafe/api/stream';
-                        window.globalAudio.play().then(() => {
-                            playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
-                            musicStatus.textContent = '🎵';
-                            isPlaying = true;
-                            showNotification('Music started', 'success');
-                            
-                            // Update volume control to work with global audio
-                            volumeSlider.addEventListener('input', () => {
-                                window.globalAudio.volume = volumeSlider.value / 100;
-                                volumeDisplay.textContent = volumeSlider.value + '%';
-                            });
-                        }).catch(err => {
-                            showNotification('Click play button to start music (browser requires user interaction)', 'info');
-                        });
-                    });
+                        oscillator.frequency.setValueAtTime(frequencies[currentWhiteNoiseType], audioContext.currentTime);
+                        oscillator.type = 'sine';
+                        gainNode.gain.value = 0.1;
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        oscillator.start();
+                        
+                        whiteNoiseGenerator = { whiteNoise: oscillator, gainNode, audioContext };
+                        
+                        playPauseBtn.innerHTML = '<i data-feather="pause" class="w-5 h-5"></i>';
+                        musicStatus.textContent = '🎵';
+                        isPlaying = true;
+                        showNotification(`Playing ${currentWhiteNoiseType} sounds`, 'success');
+                    } catch (error) {
+                        console.error('Audio generation failed:', error);
+                        showNotification('Audio not supported in this browser', 'error');
+                    }
                 }
             }
             
@@ -444,39 +488,62 @@ document.addEventListener('DOMContentLoaded', function() {
         // Volume control
         function updateVolume() {
             const volume = volumeSlider.value / 100;
+            if (whiteNoiseGenerator && whiteNoiseGenerator.gainNode) {
+                whiteNoiseGenerator.gainNode.gain.value = volume * 0.3;
+            }
             lofiAudio.volume = volume;
             volumeDisplay.textContent = volumeSlider.value + '%';
         }
+        
+        // Add noise type selector
+        const noiseTypeSelector = document.createElement('div');
+        noiseTypeSelector.className = 'flex gap-2 mt-4';
+        noiseTypeSelector.innerHTML = `
+            <button class="noise-type-btn px-3 py-1 rounded-lg text-sm bg-accent-500 text-white" data-type="white">White</button>
+            <button class="noise-type-btn px-3 py-1 rounded-lg text-sm bg-gray-600 text-white" data-type="pink">Pink</button>
+            <button class="noise-type-btn px-3 py-1 rounded-lg text-sm bg-gray-600 text-white" data-type="rain">Rain</button>
+            <button class="noise-type-btn px-3 py-1 rounded-lg text-sm bg-gray-600 text-white" data-type="ocean">Ocean</button>
+            <button class="noise-type-btn px-3 py-1 rounded-lg text-sm bg-gray-600 text-white" data-type="forest">Forest</button>
+        `;
+        
+        // Insert the selector after the volume control
+        const volumeControl = volumeSlider.parentElement;
+        volumeControl.parentElement.insertBefore(noiseTypeSelector, volumeControl.nextSibling);
+        
+        // Handle noise type selection
+        noiseTypeSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('noise-type-btn')) {
+                const newType = e.target.dataset.type;
+                
+                // Stop current audio if playing
+                if (isPlaying) {
+                    togglePlayPause();
+                }
+                
+                // Update current type
+                currentWhiteNoiseType = newType;
+                
+                // Update button styles
+                noiseTypeSelector.querySelectorAll('.noise-type-btn').forEach(btn => {
+                    btn.classList.remove('bg-accent-500');
+                    btn.classList.add('bg-gray-600');
+                });
+                e.target.classList.remove('bg-gray-600');
+                e.target.classList.add('bg-accent-500');
+                
+                // Update track info
+                loadCurrentTrack();
+                
+                showNotification(`Switched to ${newType} noise`, 'info');
+            }
+        });
         
         // Event listeners
         playPauseBtn.addEventListener('click', togglePlayPause);
         volumeSlider.addEventListener('input', updateVolume);
         
-        // Handle audio events
-        lofiAudio.addEventListener('ended', () => {
-            // Lofi stream shouldn't end, but if it does, restart
-            if (isPlaying) {
-                setTimeout(() => {
-                    lofiAudio.play();
-                }, 1000);
-            }
-        });
-        
-        lofiAudio.addEventListener('error', () => {
-            if (isPlaying) {
-                showNotification('Audio stream interrupted, retrying...', 'warning');
-                setTimeout(() => {
-                    lofiAudio.src = 'https://lofi.cafe/api/stream';
-                    lofiAudio.play();
-                }, 2000);
-            }
-        });
-        
         // Load track info on initialization
         loadCurrentTrack();
-        
-        // Refresh track info periodically
-        setInterval(loadCurrentTrack, 30000); // Every 30 seconds
     }
 
     // TaskPlanner Implementation
