@@ -645,7 +645,28 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
     
     // Extract text from PDF using Python script
     const pythonScriptPath = path.join(__dirname, 'pdf_processor.py');
-    const pythonProcess = spawn('python3', [pythonScriptPath, pdfPath]);
+    
+    // Try different Python commands for cross-platform compatibility
+    let pythonCommand = 'python3';
+    const pythonCommands = ['python3', 'python', 'py'];
+    
+    async function tryPythonCommand(cmd) {
+      return new Promise((resolve) => {
+        const testProcess = spawn(cmd, ['--version']);
+        testProcess.on('close', (code) => resolve(code === 0));
+        testProcess.on('error', () => resolve(false));
+      });
+    }
+    
+    // Find working Python command
+    for (const cmd of pythonCommands) {
+      if (await tryPythonCommand(cmd)) {
+        pythonCommand = cmd;
+        break;
+      }
+    }
+    
+    const pythonProcess = spawn(pythonCommand, [pythonScriptPath, pdfPath]);
     
     let textContent = '';
     let errorContent = '';
@@ -667,10 +688,24 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
       if (code !== 0) {
         console.log('Python process failed with code:', code);
         console.log('Error output:', errorContent);
-        return res.status(500).json({ 
-          success: false, 
-          error: 'PDF processing failed: ' + errorContent 
-        });
+        console.log('Trying JavaScript fallback for PDF processing...');
+        
+        // Use JavaScript fallback when Python fails
+        const { extractTextFromPDF } = require('./pdf_fallback');
+        const fallbackResult = extractTextFromPDF(pdfPath);
+        
+        if (fallbackResult.success) {
+          return res.json({
+            success: true,
+            textContent: fallbackResult.text_content,
+            message: 'PDF processed using JavaScript fallback method'
+          });
+        } else {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Both Python and JavaScript PDF processing failed: ' + fallbackResult.error 
+          });
+        }
       }
       
       try {
@@ -696,10 +731,29 @@ app.post('/api/snapstudy/upload', upload.single('pdf'), async (req, res) => {
     
     pythonProcess.on('error', (spawnError) => {
       console.log('Python spawn error:', spawnError.message);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Failed to start PDF processing: ' + spawnError.message 
+      console.log('Using JavaScript fallback for PDF processing...');
+      
+      // Use JavaScript fallback when Python command fails to spawn
+      const { extractTextFromPDF } = require('./pdf_fallback');
+      const fallbackResult = extractTextFromPDF(pdfPath);
+      
+      // Clean up uploaded file
+      fs.unlink(pdfPath, (unlinkErr) => {
+        if (unlinkErr) console.log('Warning: Could not delete uploaded file:', unlinkErr.message);
       });
+      
+      if (fallbackResult.success) {
+        res.json({
+          success: true,
+          textContent: fallbackResult.text_content,
+          message: 'PDF processed using JavaScript fallback method'
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: 'PDF processing failed: ' + fallbackResult.error 
+        });
+      }
     });
     
   } catch (error) {
