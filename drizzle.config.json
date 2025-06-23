@@ -1,8 +1,8 @@
 {
   "schema": "./shared/schema.ts",
   "out": "./drizzle",
-  "dialect": "postgresql",
+  "driver": "pg",
   "dbCredentials": {
-    "url": "${DATABASE_URL}"
+    "connectionString": "postgresql://neondb_owner:npg_8ZjW9wYPTLKi@ep-broad-pine-a2uouu44.eu-central-1.aws.neon.tech/neondb?sslmode=require"
   }
 }
