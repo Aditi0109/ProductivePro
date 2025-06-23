@@ -2,6 +2,8 @@
 
 A comprehensive productivity application that combines time management, focus tools, and AI-powered study assistance to help users maximize their productivity and maintain focus throughout their work sessions.
 
+https://github.com/user-attachments/assets/cfd4c46b-ef31-4332-bb70-fa98360471f3
+
 ## Features
 
 ### 🍅 Pomodoro Timer
