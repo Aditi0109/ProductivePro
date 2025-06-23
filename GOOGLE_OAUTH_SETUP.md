@@ -22,12 +22,8 @@ To enable Google Sign-In for ProductivePro, you need to configure OAuth 2.0 cred
    - Fill in required fields (App name, User support email, Developer email)
    - Add your domain to authorized domains: `replit.app`
 4. Choose "Web application" as application type
-5. Add these to "Authorized JavaScript origins":
-   - `https://workspace.replit.app`
-   - `https://workspace-yourprojectname.replit.app` (if different)
-6. Add these to "Authorized redirect URIs":
-   - `https://workspace.replit.app`
-   - `https://workspace-yourprojectname.replit.app` (if different)
+5. Add "Authorized JavaScript origins":
+6. Add "Authorized redirect URIs":
 7. Click "Create"
 
 ### Step 4: Configure Environment Variable
