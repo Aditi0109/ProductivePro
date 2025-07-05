@@ -1,8 +1,7 @@
 pdfplumber==0.11.7
 PyPDF2==3.0.1
 trafilatura==1.9.0
-pdfplumber
-pypdf2
-pdfplumber
-pypdf2
-trafilatura
+
+
+
+
